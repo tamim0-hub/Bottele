@@ -13,6 +13,7 @@ $csrfToken = $auth->csrfToken();
 $demoMode  = defined('DEMO_MODE') && DEMO_MODE;
 $groqDemo  = $groq->isDemo();
 $wooDemo   = $woo->isDemo();
+$dbConnected = $db->isConnected();
 $license   = checkLicense();
 $siteUrl   = defined('SITE_URL') ? SITE_URL : '';
 $cronToken = $db->getSetting('cron_token', '');
@@ -375,8 +376,8 @@ $cronToken = $db->getSetting('cron_token', '');
                             WooCommerce: <?= $wooDemo ? 'ডেমো (কি নেই)' : 'সক্রিয় ✅' ?>
                         </div>
                         <div class="conn-item">
-                            <span class="conn-dot conn-on"></span>
-                            ডাটাবেস: সক্রিয় ✅
+                            <span class="conn-dot <?= $dbConnected ? 'conn-on' : 'conn-off' ?>"></span>
+                            ডাটাবেস: <?= $dbConnected ? 'সক্রিয় ✅' : 'বিচ্ছিন্ন ❌' ?>
                         </div>
                     </div>
                 </div>

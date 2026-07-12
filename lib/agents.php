@@ -50,18 +50,23 @@ class Agents {
                 return "⚠️ {$agent} এজেন্ট ইতিমধ্যে চলছে। কিছুক্ষণ পর আবার চেষ্টা করুন।";
             }
         }
-        $this->db->setAgentRunning($agent, true);
+
+        // অ্যাটমিক স্টেট চেঞ্জ — working সেট করুন শুধু যদি idle থাকে
+        $setOk = $this->db->setAgentRunningIfIdle($agent, true);
+        if (!$setOk) {
+            return "⚠️ {$agent} এজেন্ট ইতিমধ্যে চলছে। কিছুক্ষণ পর আবার চেষ্টা করুন।";
+        }
 
         try {
             $output = $this->$method($input);
             $this->db->setAgentState($agent, 'idle', $output);
-            $this->db->setAgentRunning($agent, false);
             $this->db->addLog($agent, $method, json_encode($input, JSON_UNESCAPED_UNICODE), mb_substr($output, 0, 500), 'success');
             return $output;
         } catch (Exception $e) {
             $errMsg = 'ত্রুটি: ' . $e->getMessage();
             $this->db->setAgentState($agent, 'error', $errMsg);
-            $this->db->setAgentRunning($agent, false);
+            // সেটিং রানিং ফলস করবেন না — setAgentState ইতিমধ্যে স্টেট সেট করেছে
+            // setAgentRunning(false) স্টেট 'idle' ওভাররাইট করে দেয়!
             $this->db->addLog($agent, $method, json_encode($input, JSON_UNESCAPED_UNICODE), $errMsg, 'error');
             return $errMsg;
         }
@@ -285,6 +290,7 @@ class Agents {
 
         if ($action === 'add') {
             // নতুন কার্ট যোগ
+            if (!$this->db->isConnected()) return '❌ ডাটাবেস কানেকশন নেই।';
             $email = $input['email'] ?? '';
             $name  = $input['name'] ?? '';
             $cart  = $input['cart_data'] ?? '{}';
@@ -660,6 +666,7 @@ class Agents {
         $action = $input['action'] ?? 'pending';
 
         if ($action === 'mark_forwarded') {
+            if (!$this->db->isConnected()) return '❌ ডাটাবেস কানেকশন নেই।';
             $id = (int)($input['id'] ?? 0);
             if ($id <= 0) return '❌ অর্ডার ID দিন।';
             try {

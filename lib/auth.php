@@ -19,6 +19,10 @@ class Auth {
             session_name('ai_office_sess');
             session_start();
         }
+        // লগইনের আগেই CSRF টোকেন তৈরি করুন (লগইন CSRF সুরক্ষার জন্য)
+        if (empty($_SESSION['csrf_token'])) {
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        }
     }
 
     /**
@@ -29,6 +33,10 @@ class Auth {
         // ব্রুট-ফোর্স প্রোটেকশন — ৫ বার ভুল হলে ১৫ মিনিট ব্লক
         if ($this->isLoginBlocked()) {
             return ['success' => false, 'error' => 'অনেকবার ভুল চেষ্টা হয়েছে। ১৫ মিনিট পর আবার চেষ্টা করুন।'];
+        }
+
+        if (!$this->db->isConnected()) {
+            return ['success' => false, 'error' => 'ডাটাবেস কানেকশন নেই।'];
         }
 
         try {
@@ -114,6 +122,9 @@ class Auth {
      * পাসওয়ার্ড পরিবর্তন
      */
     public function changePassword(string $oldPass, string $newPass): array {
+        if (!$this->db->isConnected()) {
+            return ['success' => false, 'error' => 'ডাটাবেস কানেকশন নেই।'];
+        }
         try {
             $stmt = $this->db->pdo->prepare('SELECT password_hash FROM users WHERE id = ?');
             $stmt->execute([$_SESSION['user_id']]);
@@ -141,6 +152,9 @@ class Auth {
      * নতুন ইউজার তৈরি (শুধু admin দ্বারা)
      */
     public function createUser(string $username, string $password): array {
+        if (!$this->db->isConnected()) {
+            return ['success' => false, 'error' => 'ডাটাবেস কানেকশন নেই।'];
+        }
         try {
             if (strlen($username) < 3 || strlen($password) < 6) {
                 return ['success' => false, 'error' => 'ইউজারনেম ৩+ এবং পাসওয়ার্ড ৬+ অক্ষর দিন।'];

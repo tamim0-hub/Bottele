@@ -53,6 +53,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($step === 4) {
+        // ধাপ ২ সম্পন্ন হয়েছে কিনা যাচাই
+        if (empty($_SESSION['install_db'])) {
+            $error = 'ডাটাবেস কানেকশন ধাপ এখনো সম্পন্ন হয়নি। ধাপ ১ থেকে শুরু করুন।';
+            $step = 1;
+        } else {
         // অ্যাডমিন সেটআপ + config.php তৈরি
         $adminUser = $_POST['admin_user'] ?? 'admin';
         $adminPass = $_POST['admin_pass'] ?? '';
@@ -127,6 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $step = 3;
             }
         }
+        } // ধাপ ২ যাচাই এর else বন্ধ
     }
 }
 

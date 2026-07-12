@@ -178,6 +178,32 @@ class DB {
     }
 
     /**
+     * অ্যাটমিক: শুধুমাত্র idle হলে working সেট করুন (রেস কন্ডিশন রোধ)
+     * @return bool সফল হলে true, ইতিমধ্যে working হলে false
+     */
+    public function setAgentRunningIfIdle(string $agent, bool $running): bool {
+        if (!$this->pdo) return false;
+        try {
+            if ($running) {
+                // অ্যাটমিক: রো না থাকলে INSERT, থাকলে শুধু idle/error হলে UPDATE
+                // rowCount: ১=নতুন INSERT, ২=UPDATE হয়েছে, ০=কোনো পরিবর্তন নেই (ইতিমধ্যে working)
+                $stmt = $this->pdo->prepare(
+                    'INSERT INTO agent_state (agent, state, updated_at) VALUES (?, "working", NOW())
+                     ON DUPLICATE KEY UPDATE
+                       state = IF(state IN ("idle", "error"), "working", state),
+                       updated_at = IF(state IN ("idle", "error"), NOW(), updated_at)'
+                );
+                $stmt->execute([$agent]);
+                $affected = $stmt->rowCount();
+                return $affected > 0; // ১ (নতুন রো) বা ২ (আপডেট) হলে সফল
+            }
+            return true; // idle সেট করা সবসময় সফল
+        } catch (Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * সব এজেন্টের স্টেট পড়ুন
      */
     public function getAgentStates(): array {

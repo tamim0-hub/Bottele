@@ -57,43 +57,48 @@ class Mailer {
      * কার্ট রিকভারি টেমপ্লেট (৩ ধাপ)
      */
     private function cartTemplates(string $store, string $name, string $coupon): array {
+        // HTML ইনজেকশন রোধ — ভেরিয়েবল এস্কেপ
+        $safeName   = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+        $safeStore  = htmlspecialchars($store, ENT_QUOTES, 'UTF-8');
+        $safeCoupon = htmlspecialchars($coupon, ENT_QUOTES, 'UTF-8');
+
         return [
             // ধাপ ১: ১ ঘন্টা পর — স্মরণ
             [
-                'subject' => "🛒 {$name}, আপনার কার্ট অপেক্ষা করছে!",
+                'subject' => "🛒 {$safeName}, আপনার কার্ট অপেক্ষা করছে!",
                 'html' => $this->emailWrap("
-                    <h2>হ্যালো {$name},</h2>
+                    <h2>হ্যালো {$safeName},</h2>
                     <p>মনে হচ্ছে আপনি কিছু দারুণ পণ্য কার্টে রেখে গেছেন! 😊</p>
                     <p>আপনার পণ্যগুলো এখনো স্টকে আছে — দ্রুত অর্ডার কমপ্লিট করুন।</p>
                     <a href='#' style='display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;margin:16px 0;'>কার্ট দেখুন →</a>
-                    <p>ধন্যবাদান্তে,<br><strong>{$store}</strong> টিম</p>
+                    <p>ধন্যবাদান্তে,<br><strong>{$safeStore}</strong> টিম</p>
                 "),
                 'text' => "হ্যালো {$name}, আপনার কার্টে কিছু পণ্য বাকি আছে। দ্রুত অর্ডার কমপ্লিট করুন। ধন্যবাদ, {$store}",
             ],
             // ধাপ ২: ২৪ ঘন্টা পর — ছাড়ের অফার
             [
-                'subject' => "🎁 {$name}, আপনার জন্য বিশেষ ছাড়!",
+                'subject' => "🎁 {$safeName}, আপনার জন্য বিশেষ ছাড়!",
                 'html' => $this->emailWrap("
-                    <h2>হ্যালো {$name},</h2>
+                    <h2>হ্যালো {$safeName},</h2>
                     <p>আপনার কার্টের পণ্যে আমরা বিশেষ ছাড় দিচ্ছি! 🎉</p>
-                    " . ($coupon ? "<p style='font-size:18px;padding:12px;background:#f0fdf4;border:2px dashed #22c55e;border-radius:8px;text-align:center;'>কুপন কোড: <strong>{$coupon}</strong></p>" : "") . "
+                    " . ($safeCoupon ? "<p style='font-size:18px;padding:12px;background:#f0fdf4;border:2px dashed #22c55e;border-radius:8px;text-align:center;'>কুপন কোড: <strong>{$safeCoupon}</strong></p>" : "") . "
                     <p>এই অফার সীমিত সময়ের — এখনই ব্যবহার করুন!</p>
                     <a href='#' style='display:inline-block;padding:12px 24px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;margin:16px 0;'>এখনই অর্ডার করুন →</a>
-                    <p>ধন্যবাদান্তে,<br><strong>{$store}</strong> টিম</p>
+                    <p>ধন্যবাদান্তে,<br><strong>{$safeStore}</strong> টিম</p>
                 "),
                 'text' => "হ্যালো {$name}, আপনার কার্টে বিশেষ ছাড়! কুপন: {$coupon}। ধন্যবাদ, {$store}",
             ],
             // ধাপ ৩: ৭২ ঘন্টা পর — শেষ সুযোগ
             [
-                'subject' => "⏰ {$name}, শেষ সুযোগ — কার্ট শীঘ্রই মুছে যাবে!",
+                'subject' => "⏰ {$safeName}, শেষ সুযোগ — কার্ট শীঘ্রই মুছে যাবে!",
                 'html' => $this->emailWrap("
-                    <h2>হ্যালো {$name},</h2>
+                    <h2>হ্যালো {$safeName},</h2>
                     <p>এটি আপনার শেষ রিমাইন্ডার! আপনার কার্টের পণ্য শীঘ্রই মুছে যেতে পারে।</p>
                     <p>এই দারুণ পণ্যগুলো হাতছাড়া হতে দিতে চান না তো! 😢</p>
-                    " . ($coupon ? "<p style='font-size:18px;padding:12px;background:#fef2f2;border:2px dashed #ef4444;border-radius:8px;text-align:center;'>শেষ সুযোগ! কুপন: <strong>{$coupon}</strong></p>" : "") . "
+                    " . ($safeCoupon ? "<p style='font-size:18px;padding:12px;background:#fef2f2;border:2px dashed #ef4444;border-radius:8px;text-align:center;'>শেষ সুযোগ! কুপন: <strong>{$safeCoupon}</strong></p>" : "") . "
                     <a href='#' style='display:inline-block;padding:12px 24px;background:#ef4444;color:#fff;text-decoration:none;border-radius:8px;margin:16px 0;'>অর্ডার করুন — শেষ সুযোগ →</a>
                     <p style='color:#888;font-size:14px;'>আর রিমাইন্ডার পেতে চাইলে এই মেসেজ উপেক্ষা করুন।</p>
-                    <p>ধন্যবাদান্তে,<br><strong>{$store}</strong> টিম</p>
+                    <p>ধন্যবাদান্তে,<br><strong>{$safeStore}</strong> টিম</p>
                 "),
                 'text' => "হ্যালো {$name}, শেষ সুযোগ! কার্ট শীঘ্রই মুছে যাবে। কুপন: {$coupon}। ধন্যবাদ, {$store}",
             ],

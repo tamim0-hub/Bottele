@@ -34,8 +34,10 @@ if (!file_exists(__DIR__ . '/../config.php')) {
     $script = basename($_SERVER['SCRIPT_NAME'] ?? '');
     if (!in_array($script, ['install.php', 'login.php']) && strpos($script, 'auth.php') === false) {
         // সঠিক পাথ হিসাব করুন — api/ সাবডিরেক্টরি থেকেও কাজ করবে
-        $base = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
-        $redirect = ($base ? $base : '') . '/../install.php';
+        $scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        // api/ সাবডিরেক্টরি থেকে কল হলে এক লেভেল উপরে যান
+        $basePath = preg_replace('#/api$#', '', $scriptDir);
+        $redirect = ($basePath ? $basePath : '') . '/install.php';
         header('Location: ' . $redirect);
         exit;
     }

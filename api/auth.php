@@ -16,6 +16,13 @@ if (!isset($auth)) {
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 if ($action === 'login') {
+    // CSRF যাচাই (লগইন সুরক্ষা)
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!$auth->verifyCsrf($csrfToken)) {
+        echo json_encode(['success' => false, 'error' => 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।']);
+        exit;
+    }
+
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
 
@@ -30,7 +37,7 @@ if ($action === 'login') {
 }
 
 if ($action === 'check') {
-    echo json_encode(['loggedIn' => $auth->isLoggedIn(), 'username' => $auth->username()]);
+    echo json_encode(['loggedIn' => $auth->isLoggedIn()]);
     exit;
 }
 

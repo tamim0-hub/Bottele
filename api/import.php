@@ -81,6 +81,14 @@ try {
         exit;
     }
 
+    // সর্বোচ্চ ১০০টি সারি ইম্পোর্ট (টাইমআউট রোধ)
+    $maxRows = 100;
+    if (count($rows) > $maxRows) {
+        $rows = array_slice($rows, 0, $maxRows);
+        // ট্রাঙ্কেটেড রো কাউন্ট পরে দেখাব
+    }
+    $totalRows = count($rows);
+
     // ক্যাটালগ ইম্পোর্ট লগ
     if (!$db->isConnected()) {
         echo json_encode(['error' => 'ডাটাবেস কানেকশন নেই।']);
@@ -156,8 +164,8 @@ function parseCsv(string $path): array {
         return $rows;
     }
 
-    // হেডার ক্লিন করুন
-    $headers = array_map(fn($h) => strtolower(trim($h)), $headers);
+    // হেডার ক্লিন করুন + UTF-8 BOM সরান
+    $headers = array_map(fn($h) => strtolower(trim(preg_replace('/^\xEF\xBB\xBF/', '', $h))), $headers);
 
     // ডাটা পড়ুন
     while (($data = fgetcsv($handle)) !== false) {

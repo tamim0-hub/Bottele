@@ -20,17 +20,23 @@ if (isset($auth) && $auth->isLoggedIn()) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    if (isset($auth)) {
-        $result = $auth->login($username, $password);
-        if ($result['success']) {
-            header('Location: index.php');
-            exit;
-        }
-        $error = $result['error'] ?? 'লগইন ব্যর্থ।';
+    // CSRF যাচাই
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!isset($auth) || !$auth->verifyCsrf($csrfToken)) {
+        $error = 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।';
     } else {
-        $error = 'সিস্টেম ত্রুটি — অথেনটিকেশন লোড হয়নি।';
+        $username = $_POST['username'] ?? '';
+        $password = $_POST['password'] ?? '';
+        if (isset($auth)) {
+            $result = $auth->login($username, $password);
+            if ($result['success']) {
+                header('Location: index.php');
+                exit;
+            }
+            $error = $result['error'] ?? 'লগইন ব্যর্থ।';
+        } else {
+            $error = 'সিস্টেম ত্রুটি — অথেনটিকেশন লোড হয়নি।';
+        }
     }
 }
 
@@ -62,6 +68,7 @@ $demoMode = defined('DEMO_MODE') && DEMO_MODE;
             <?php endif; ?>
 
             <form method="POST" action="login.php" class="login-form">
+                <input type="hidden" name="csrf_token" value="<?= $auth->csrfToken() ?>">
                 <div class="form-group">
                     <label for="username">👤 ইউজারনেম</label>
                     <input type="text" id="username" name="username" required autofocus

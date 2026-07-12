@@ -10,6 +10,7 @@ class Demo {
      * ডেমো ডাটা সিড করুন — ইনস্টলার বা সেটিংস থেকে কল হয়
      */
     public static function seed(DB $db): void {
+        if (!$db->isConnected()) return;
         // এজেন্ট স্টেট সিড
         $agents = ['leader', 'product_import', 'price', 'inventory', 'cart_recovery', 'social', 'seo', 'content', 'customer_reply', 'order_prep'];
         $stmt = $db->pdo->prepare(
