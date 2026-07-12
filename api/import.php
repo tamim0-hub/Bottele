@@ -83,11 +83,12 @@ try {
 
     // সর্বোচ্চ ১০০টি সারি ইম্পোর্ট (টাইমআউট রোধ)
     $maxRows = 100;
-    if (count($rows) > $maxRows) {
+    $originalCount = count($rows);
+    $truncated = false;
+    if ($originalCount > $maxRows) {
         $rows = array_slice($rows, 0, $maxRows);
-        // ট্রাঙ্কেটেড রো কাউন্ট পরে দেখাব
+        $truncated = true;
     }
-    $totalRows = count($rows);
 
     // ক্যাটালগ ইম্পোর্ট লগ
     if (!$db->isConnected()) {
@@ -138,12 +139,14 @@ try {
     $stmt->execute([$imported, $skipped + $errors, $importId]);
 
     echo json_encode([
-        'success'  => true,
-        'total'    => count($rows),
-        'imported' => $imported,
-        'skipped'  => $skipped,
-        'errors'   => $errors,
-        'details'  => $details,
+        'success'    => true,
+        'total'      => count($rows),
+        'imported'   => $imported,
+        'skipped'    => $skipped,
+        'errors'     => $errors,
+        'truncated'  => $truncated,
+        'original_total' => $originalCount,
+        'details'    => $details,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
     echo json_encode(['error' => 'ইম্পোর্ট ত্রুটি: ' . $e->getMessage()]);

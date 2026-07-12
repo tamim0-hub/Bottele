@@ -45,6 +45,12 @@ if ($action === 'check') {
 $auth->requireLogin(true);
 
 if ($action === 'logout') {
+    // CSRF যাচাই (লগআউট CSRF রোধ)
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!$auth->verifyCsrf($csrfToken)) {
+        echo json_encode(['success' => false, 'error' => 'CSRF টোকেন অবৈধ।']);
+        exit;
+    }
     $auth->logout();
     echo json_encode(['success' => true]);
     exit;

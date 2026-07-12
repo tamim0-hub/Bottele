@@ -23,7 +23,11 @@ $error = '';
 $alreadyInstalled = file_exists(__DIR__ . '/config.php') && $step < 5;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if ($step === 2) {
+    // ইতিমধ্যে ইনস্টল হলে config.php ওভাররাইট রোধ
+    if (file_exists(__DIR__ . '/config.php')) {
+        $error = 'AI Office ইতিমধ্যে ইনস্টল হয়েছে। config.php ডিলিট না করে পুনরায় ইনস্টল করা যাবে না।';
+        $step = 1;
+    } elseif ($step === 2) {
         // ডাটাবেস টেস্ট
         $dbHost = preg_replace('/[^a-zA-Z0-9._:-]/', '', $_POST['db_host'] ?? 'localhost');
         $dbName = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['db_name'] ?? '');
@@ -50,9 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $step = 1;
             }
         }
-    }
-
-    if ($step === 4) {
+    } elseif ($step === 4) {
         // ধাপ ২ সম্পন্ন হয়েছে কিনা যাচাই
         if (empty($_SESSION['install_db'])) {
             $error = 'ডাটাবেস কানেকশন ধাপ এখনো সম্পন্ন হয়নি। ধাপ ১ থেকে শুরু করুন।';

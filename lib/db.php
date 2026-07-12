@@ -223,7 +223,8 @@ class DB {
         if (!$this->pdo) return [];
         try {
             $stmt = $this->pdo->prepare('SELECT * FROM agent_logs ORDER BY created_at DESC LIMIT ?');
-            $stmt->execute([$limit]);
+            $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+            $stmt->execute();
             return $stmt->fetchAll();
         } catch (Exception $e) {
             return [];
@@ -293,10 +294,29 @@ class DB {
         if (!$this->pdo) return [];
         try {
             $stmt = $this->pdo->prepare('SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?');
-            $stmt->execute([$limit]);
+            $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+            $stmt->execute();
             return array_reverse($stmt->fetchAll());
         } catch (Exception $e) {
             return [];
+        }
+    }
+
+    /**
+     * আটকে থাকা এজেন্ট অ্যাটমিকভাবে রিসেট করুন (run_count বাড়াবে না)
+     * @return bool রিসেট হলে true
+     */
+    public function resetStuckAgentIfOld(string $agent, int $stuckSeconds = 300): bool {
+        if (!$this->pdo) return false;
+        try {
+            $stmt = $this->pdo->prepare(
+                'UPDATE agent_state SET state = "idle", last_output = "স্বয়ংক্রিয়ভাবে রিসেট (আটকে ছিল)", updated_at = NOW()
+                 WHERE agent = ? AND state = "working" AND updated_at < DATE_SUB(NOW(), INTERVAL ? SECOND)'
+            );
+            $stmt->execute([$agent, $stuckSeconds]);
+            return $stmt->rowCount() > 0;
+        } catch (Exception $e) {
+            return false;
         }
     }
 

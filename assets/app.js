@@ -426,7 +426,7 @@
             await fetch('api/auth.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=logout',
+                body: 'action=logout&csrf_token=' + encodeURIComponent(getCsrfToken()),
             });
         } catch (e) {}
         window.location.href = 'login.php';

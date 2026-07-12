@@ -84,19 +84,10 @@ class Agents {
     }
 
     /**
-     * আটকে থাকা এজেন্ট রিসেট করুন (৫+ মিনিট working)
+     * আটকে থাকা এজেন্ট রিসেট করুন (৫+ মিনিট working) — অ্যাটমিক
      */
     private function resetStuckAgent(string $agent): void {
-        $states = $this->db->getAgentStates();
-        foreach ($states as $s) {
-            if ($s['agent'] === $agent && $s['state'] === 'working') {
-                $updated = strtotime($s['updated_at']);
-                if ($updated && (time() - $updated) > 300) {
-                    $this->db->setAgentState($agent, 'idle', 'স্বয়ংক্রিয়ভাবে রিসেট (আটকে ছিল)');
-                    $this->db->setAgentRunning($agent, false);
-                }
-            }
-        }
+        $this->db->resetStuckAgentIfOld($agent, 300);
     }
 
     // ────────────────────────────────────────────────────────────
@@ -134,13 +125,18 @@ class Agents {
     // ────────────────────────────────────────────────────────────
     private function productImport(array $input): string {
         $name      = $input['name'] ?? '';
-        $wholesale = $input['wholesale'] ?? 0;
         $category  = $input['category'] ?? 'সাধারণ';
         $imageUrl  = $input['image_url'] ?? '';
         $margin    = (float)($this->db->getSetting('profit_margin', '30'));
 
         if (empty($name)) {
             return '❌ পণ্যের নাম দিন।';
+        }
+
+        // হোলসেল মূল্য ভ্যালিডেশন
+        $wholesale = (float)($input['wholesale'] ?? 0);
+        if ($wholesale < 0) {
+            return '❌ হোলসেল মূল্য নেগেটিভ হতে পারবে না।';
         }
 
         // Groq-কে description + SEO লিখতে বলুন
@@ -424,6 +420,19 @@ class Agents {
 
         if (empty($url)) {
             return '❌ অডিট করার জন্য URL দিন অথবা WooCommerce URL কনফিগ করুন।';
+        }
+
+        // SSRF সুরক্ষা — প্রাইভেট/অভ্যন্তরীণ IP ব্লক করুন
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!$host) {
+            return '❌ অবৈধ URL। সঠিক URL দিন।';
+        }
+        $resolved = gethostbyname($host);
+        if ($resolved === $host && !filter_var($resolved, FILTER_VALIDATE_IP)) {
+            return '❌ URL রেজলভ করা যায়নি।';
+        }
+        if ($this->isPrivateIp($resolved)) {
+            return '❌ অভ্যন্তরীণ/প্রাইভেট IP অ্যাক্সেস অনুমোদিত নয় (নিরাপত্তা)।';
         }
 
         // সার্ভার-সাইড ক্রল
@@ -786,5 +795,21 @@ class Agents {
         if ($diff < 3600) return floor($diff / 60) . ' মিনিট আগে';
         if ($diff < 86400) return floor($diff / 3600) . ' ঘন্টা আগে';
         return floor($diff / 86400) . ' দিন আগে';
+    }
+
+    /**
+     * প্রাইভেট/অভ্যন্তরীণ IP চেক (SSRF সুরক্ষা)
+     */
+    private function isPrivateIp(string $ip): bool {
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) return true;
+        // লুপব্যাক
+        if ($ip === '127.0.0.1' || $ip === '::1') return true;
+        // RFC 1918 প্রাইভেট রেঞ্জ
+        if (preg_match('/^(10\.|172\.(1[6-9]|2[0-9]|3[01])\.|192\.168\.)/', $ip)) return true;
+        // লিংক-লোকাল (AWS/GCP মেটাডাটা: 169.254.x.x)
+        if (preg_match('/^(169\.254\.|fe80:)/', $ip)) return true;
+        // 0.0.0.0
+        if ($ip === '0.0.0.0' || $ip === '::') return true;
+        return false;
     }
 }
