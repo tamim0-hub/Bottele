@@ -392,7 +392,11 @@
             const res = await fetch('api/import.php', { method: 'POST', body: formData });
             const data = await res.json();
             if (data.success) {
-                resultEl.innerHTML = `✅ ইম্পোর্ট সম্পন্ন!<br>মোট: ${data.total}, সফল: ${data.imported}, স্কিপ: ${data.skipped}, ত্রুটি: ${data.errors}`;
+                let html = `✅ ইম্পোর্ট সম্পন্ন!<br>মোট: ${data.total}, সফল: ${data.imported}, স্কিপ: ${data.skipped}, ত্রুটি: ${data.errors}`;
+                if (data.truncated) {
+                    html += `<br>⚠️ মোট ${data.original_total}টি সারি ছিল, প্রথম ${data.total}টি ইম্পোর্ট হয়েছে (টাইমআউট রোধে)।`;
+                }
+                resultEl.innerHTML = html;
                 showToast('ক্যাটালগ ইম্পোর্ট সম্পন্ন!', 'success');
             } else {
                 resultEl.innerHTML = '❌ ' + (data.error || 'ইম্পোর্ট ব্যর্থ');
