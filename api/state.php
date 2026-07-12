@@ -36,6 +36,7 @@ try {
         'time'     => date('Y-m-d H:i:s'),
     ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
+    error_log('state.php error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'স্টেট লোডে সমস্যা: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'স্টেট লোডে সমস্যা।']);
 }

@@ -63,7 +63,7 @@ class Agents {
             $this->db->addLog($agent, $method, json_encode($input, JSON_UNESCAPED_UNICODE), mb_substr($output, 0, 500), 'success');
             return $output;
         } catch (Exception $e) {
-            $errMsg = 'ত্রুটি: ' . $e->getMessage();
+            $errMsg = 'ত্রুটি: ' . mb_substr($e->getMessage(), 0, 100);
             $this->db->setAgentState($agent, 'error', $errMsg);
             // সেটিং রানিং ফলস করবেন না — setAgentState ইতিমধ্যে স্টেট সেট করেছে
             // setAgentRunning(false) স্টেট 'idle' ওভাররাইট করে দেয়!
@@ -301,7 +301,7 @@ class Agents {
                 $stmt->execute([$email, $name, is_string($cart) ? $cart : json_encode($cart)]);
                 return "✅ কার্ট রিকভারি তালিকায় যোগ হয়েছে: {$email}";
             } catch (Exception $e) {
-                return "❌ কার্ট যোগে ত্রুটি: " . $e->getMessage();
+                return '❌ কার্ট যোগে ত্রুটি হয়েছে।';
             }
         }
 
@@ -712,7 +712,7 @@ class Agents {
                 $stmt->execute([$id]);
                 return "✅ অর্ডার #{$id} BusinessKoro-তে ফরওয়ার্ড হিসেবে চিহ্নিত।";
             } catch (Exception $e) {
-                return "❌ আপডেট ত্রুটি: " . $e->getMessage();
+                return '❌ আপডেটে ত্রুটি হয়েছে।';
             }
         }
 

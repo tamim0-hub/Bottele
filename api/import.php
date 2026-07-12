@@ -128,7 +128,7 @@ try {
             $details[] = "✅ {$name}";
         } catch (Exception $e) {
             $errors++;
-            $details[] = "❌ {$name}: " . $e->getMessage();
+            $details[] = "❌ {$name}: ইম্পোর্ট ত্রুটি";
         }
     }
 
@@ -149,7 +149,8 @@ try {
         'details'    => $details,
     ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
-    echo json_encode(['error' => 'ইম্পোর্ট ত্রুটি: ' . $e->getMessage()]);
+    error_log('import.php error: ' . $e->getMessage());
+    echo json_encode(['error' => 'ইম্পোর্ট ত্রুটি। বিস্তারিত সার্ভার লগে দেখুন।']);
 }
 
 /**
