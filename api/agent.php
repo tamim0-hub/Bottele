@@ -36,6 +36,18 @@ if (json_last_error() !== JSON_ERROR_NONE) {
 $agent = $data['agent'] ?? '';
 $input = $data['input'] ?? [];
 
+// ইনপুট ভ্যালিডেশন — অ্যারে হতে হবে, সাইজ লিমিট
+if (!is_array($input)) {
+    $input = [];
+}
+// ইনপুট JSON সাইজ লিমিট — ১০KB
+$inputJsonSize = strlen(json_encode($input));
+if ($inputJsonSize > 10240) {
+    http_response_code(413);
+    echo json_encode(['error' => 'ইনপুট ডাটা অনেক বড়।']);
+    exit;
+}
+
 if (empty($agent)) {
     http_response_code(400);
     echo json_encode(['error' => 'এজেন্ট নাম দিন।']);

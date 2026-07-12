@@ -1,4 +1,5 @@
 config.php
+install.lock
 node_modules/
 .DS_Store
 *.log

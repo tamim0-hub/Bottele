@@ -30,6 +30,12 @@ if (empty($message)) {
     exit;
 }
 
+// মেসেজ সাইজ লিমিট — ১০০০ অক্ষর
+if (mb_strlen($message) > 1000) {
+    echo json_encode(['error' => 'মেসেজ ১০০০ অক্ষরের মধ্যে দিন।']);
+    exit;
+}
+
 // ইউজার মেসেজ সেভ
 $db->saveChatMessage('user', $message);
 

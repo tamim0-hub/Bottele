@@ -54,11 +54,16 @@ class DB {
      * অ্যাডমিন ইউজার নিশ্চিত করুন
      */
     public function ensureAdmin(): void {
-        $stmt = $this->pdo->prepare('SELECT id FROM users WHERE username = ?');
-        $stmt->execute([ADMIN_USER]);
-        if (!$stmt->fetch()) {
-            $stmt = $this->pdo->prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
-            $stmt->execute([ADMIN_USER, ADMIN_PASS_HASH]);
+        if (!$this->pdo) return;
+        try {
+            $stmt = $this->pdo->prepare('SELECT id FROM users WHERE username = ?');
+            $stmt->execute([ADMIN_USER]);
+            if (!$stmt->fetch()) {
+                $stmt = $this->pdo->prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)');
+                $stmt->execute([ADMIN_USER, ADMIN_PASS_HASH]);
+            }
+        } catch (Exception $e) {
+            // সাইলেন্ট — ইনস্টলার থেকে কল হয়
         }
     }
 
@@ -82,11 +87,15 @@ class DB {
      */
     public function setSetting(string $key, string $value): void {
         if (!$this->pdo) return;
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO agent_settings (setting_key, setting_value) VALUES (?, ?)
-             ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()'
-        );
-        $stmt->execute([$key, $value, $value]);
+        try {
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO agent_settings (setting_key, setting_value) VALUES (?, ?)
+                 ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()'
+            );
+            $stmt->execute([$key, $value, $value]);
+        } catch (Exception $e) {
+            // সাইলেন্ট
+        }
     }
 
     /**
@@ -201,8 +210,11 @@ class DB {
     public function getStats(): array {
         if (!$this->pdo) return ['total_logs' => 0, 'today_logs' => 0, 'agents' => [], 'total_orders' => 0, 'pending_orders' => 0, 'active_carts' => 0, 'recovered_carts' => 0];
         try {
-
-        // মোট লগ
+        $stats = [
+            'total_logs' => 0, 'today_logs' => 0, 'agents' => [],
+            'total_orders' => 0, 'pending_orders' => 0,
+            'active_carts' => 0, 'recovered_carts' => 0,
+        ];
         $stmt = $this->pdo->query('SELECT COUNT(*) as total FROM agent_logs');
         $stats['total_logs'] = (int)($stmt->fetch()['total'] ?? 0);
 

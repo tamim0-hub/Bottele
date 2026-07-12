@@ -33,7 +33,10 @@ if (!file_exists(__DIR__ . '/../config.php')) {
     // ইনস্টলারে রিডাইরেক্ট (login.php ও api/auth.php ছাড়া)
     $script = basename($_SERVER['SCRIPT_NAME'] ?? '');
     if (!in_array($script, ['install.php', 'login.php']) && strpos($script, 'auth.php') === false) {
-        header('Location: install.php');
+        // সঠিক পাথ হিসাব করুন — api/ সাবডিরেক্টরি থেকেও কাজ করবে
+        $base = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        $redirect = ($base ? $base : '') . '/../install.php';
+        header('Location: ' . $redirect);
         exit;
     }
     // কনফিগ ছাড়া লাইব্রেরি লোড করবেন না

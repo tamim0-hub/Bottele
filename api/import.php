@@ -28,6 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
+// ফাইল সাইজ লিমিট — ৫MB পর্যন্ত
+$maxFileSize = 5 * 1024 * 1024;
+if (!empty($_FILES['catalog']['size']) && $_FILES['catalog']['size'] > $maxFileSize) {
+    echo json_encode(['error' => 'ফাইল সাইজ ৫MB এর বেশি হতে পারবে না।']);
+    exit;
+}
+
 $imported = 0;
 $skipped = 0;
 $errors  = 0;
@@ -67,6 +74,10 @@ try {
     }
 
     // ক্যাটালগ ইম্পোর্ট লগ
+    if (!$db->isConnected()) {
+        echo json_encode(['error' => 'ডাটাবেস কানেকশন নেই।']);
+        exit;
+    }
     $stmt = $db->pdo->prepare(
         'INSERT INTO catalog_import (filename, total_rows, status) VALUES (?, ?, "processing")'
     );

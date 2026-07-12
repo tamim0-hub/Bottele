@@ -24,13 +24,14 @@ if (!isset($db) || !isset($cron)) {
 $cronToken = $_GET['token'] ?? '';
 $expectedToken = $db->getSetting('cron_token', '');
 
-// টোকেন না থাকলে তৈরি করুন
-if (empty($expectedToken)) {
+// টোকেন না থাকলে তৈরি করুন (শুধু যদি DB কানেক্টেড হয়)
+if (empty($expectedToken) && $db->isConnected()) {
     $expectedToken = bin2hex(random_bytes(16));
     $db->setSetting('cron_token', $expectedToken);
 }
 
-if ($cronToken !== $expectedToken) {
+// টোকেন মিলছে কিনা চেক
+if (empty($expectedToken) || $cronToken !== $expectedToken) {
     http_response_code(403);
     echo json_encode(['error' => 'অবৈধ ক্রন টোকেন।']);
     exit;

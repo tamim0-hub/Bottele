@@ -26,6 +26,11 @@ class Auth {
      * @return array{success:bool, error?:string}
      */
     public function login(string $username, string $password): array {
+        // ব্রুট-ফোর্স প্রোটেকশন — ৫ বার ভুল হলে ১৫ মিনিট ব্লক
+        if ($this->isLoginBlocked()) {
+            return ['success' => false, 'error' => 'অনেকবার ভুল চেষ্টা হয়েছে। ১৫ মিনিট পর আবার চেষ্টা করুন।'];
+        }
+
         try {
             $stmt = $this->db->pdo->prepare('SELECT id, username, password_hash FROM users WHERE username = ?');
             $stmt->execute([$username]);
@@ -36,6 +41,7 @@ class Auth {
             }
 
             if (!password_verify($password, $user['password_hash'])) {
+                $this->recordFailedLogin();
                 return ['success' => false, 'error' => 'ইউজারনেম বা পাসওয়ার্ড ভুল।'];
             }
 
@@ -45,6 +51,7 @@ class Auth {
             $_SESSION['username'] = $user['username'];
             $_SESSION['login_time'] = time();
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $this->clearFailedLogins();
 
             return ['success' => true];
         } catch (Exception $e) {
@@ -155,5 +162,39 @@ class Auth {
      */
     public function username(): string {
         return $_SESSION['username'] ?? '';
+    }
+
+    // ── ব্রুট-ফোর্স প্রোটেকশন ────────────────────────────────
+
+    /**
+     * লগইন ব্লক আছে কিনা
+     */
+    private function isLoginBlocked(): bool {
+        $attempts = (int)($_SESSION['login_attempts'] ?? 0);
+        $lastAttempt = (int)($_SESSION['login_last_attempt'] ?? 0);
+        if ($attempts >= 5 && (time() - $lastAttempt) < 900) {
+            return true;
+        }
+        // ১৫ মিনিট পর রিসেট
+        if ($attempts >= 5 && (time() - $lastAttempt) >= 900) {
+            $this->clearFailedLogins();
+        }
+        return false;
+    }
+
+    /**
+     * ব্যর্থ লগইন রেকর্ড
+     */
+    private function recordFailedLogin(): void {
+        $_SESSION['login_attempts'] = (int)($_SESSION['login_attempts'] ?? 0) + 1;
+        $_SESSION['login_last_attempt'] = time();
+    }
+
+    /**
+     * ব্যর্থ লগইন কাউন্টার রিসেট
+     */
+    private function clearFailedLogins(): void {
+        $_SESSION['login_attempts'] = 0;
+        $_SESSION['login_last_attempt'] = 0;
     }
 }

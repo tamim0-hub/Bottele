@@ -10,6 +10,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// নিরাপত্তা: install.lock ফাইল থাকলে ইনস্টলার বন্ধ
+if (file_exists(__DIR__ . '/install.lock')) {
+    die('🚫 ইনস্টলার লক করা আছে। পুনরায় ইনস্টল করতে install.lock ফাইল ডিলিট করুন।');
+}
+
 $step = (int)($_POST['step'] ?? $_GET['step'] ?? 1);
 $message = '';
 $error = '';
@@ -105,6 +110,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $dbObj->setup();
                 $step = 5;
                 $message = '🎉 ইনস্টলেশন সম্পন্ন!';
+
+                // ইনস্টলার লক করুন — পুনরায় ইনস্টল রোধ
+                file_put_contents(__DIR__ . '/install.lock', date('Y-m-d H:i:s'));
 
                 // ডেমো ডাটা অফার
                 if (isset($_POST['seed_demo']) && $_POST['seed_demo'] === '1') {

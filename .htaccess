@@ -1,0 +1,37 @@
+# AI Office — Apache সুরক্ষা
+# config.php ও lib/ ফাইল ব্রাউজার থেকে সরাসরি অ্যাক্সেস রোধ
+
+# config.php ডিরেক্ট অ্যাক্সেস বন্ধ
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# lib/ ফোল্ডার ব্রাউজার থেকে বন্ধ
+RedirectMatch 403 ^/lib/
+
+# setup.sql বন্ধ
+<Files "setup.sql">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# .gitignore বন্ধ
+<Files ".gitignore">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# ডিরেক্টরি লিস্টিং বন্ধ
+Options -Indexes
+
+# PHP এরর ডিসপ্লে বন্ধ (ডাবল প্রোটেকশন)
+php_flag display_errors off
+
+# সিকিউরিটি হেডার
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

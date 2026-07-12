@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS `agent_orders` (
   `bk_formatted` TEXT,
   `forwarded_at` DATETIME NULL,
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY `uk_woo_order` (`woo_order_id`),
   INDEX `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

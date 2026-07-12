@@ -41,7 +41,15 @@ class Agents {
             return "❌ অজানা এজেন্ট: $agent";
         }
 
-        // স্টেট → working
+        // স্টেট → working (শুধু তখনই যখন idle)
+        $currentState = $this->getAgentState($agent);
+        if ($currentState === 'working') {
+            // আগের রান আটকে আছে কিনা চেক — ৫ মিনিটের বেশি হলে রিসেট
+            $this->resetStuckAgent($agent);
+            if ($this->getAgentState($agent) === 'working') {
+                return "⚠️ {$agent} এজেন্ট ইতিমধ্যে চলছে। কিছুক্ষণ পর আবার চেষ্টা করুন।";
+            }
+        }
         $this->db->setAgentRunning($agent, true);
 
         try {
@@ -56,6 +64,33 @@ class Agents {
             $this->db->setAgentRunning($agent, false);
             $this->db->addLog($agent, $method, json_encode($input, JSON_UNESCAPED_UNICODE), $errMsg, 'error');
             return $errMsg;
+        }
+    }
+
+    /**
+     * এজেন্টের বর্তমান স্টেট পান
+     */
+    private function getAgentState(string $agent): string {
+        $states = $this->db->getAgentStates();
+        foreach ($states as $s) {
+            if ($s['agent'] === $agent) return $s['state'];
+        }
+        return 'idle';
+    }
+
+    /**
+     * আটকে থাকা এজেন্ট রিসেট করুন (৫+ মিনিট working)
+     */
+    private function resetStuckAgent(string $agent): void {
+        $states = $this->db->getAgentStates();
+        foreach ($states as $s) {
+            if ($s['agent'] === $agent && $s['state'] === 'working') {
+                $updated = strtotime($s['updated_at']);
+                if ($updated && (time() - $updated) > 300) {
+                    $this->db->setAgentState($agent, 'idle', 'স্বয়ংক্রিয়ভাবে রিসেট (আটকে ছিল)');
+                    $this->db->setAgentRunning($agent, false);
+                }
+            }
         }
     }
 
@@ -255,12 +290,17 @@ class Agents {
             $cart  = $input['cart_data'] ?? '{}';
 
             if (empty($email)) return '❌ ইমেইল দিন।';
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return '❌ সঠিক ইমেইল দিন।';
 
-            $stmt = $this->db->pdo->prepare(
-                'INSERT INTO cart_recovery (customer_email, customer_name, cart_data, step) VALUES (?, ?, ?, 0)'
-            );
-            $stmt->execute([$email, $name, is_string($cart) ? $cart : json_encode($cart)]);
-            return "✅ কার্ট রিকভারি তালিকায় যোগ হয়েছে: {$email}";
+            try {
+                $stmt = $this->db->pdo->prepare(
+                    'INSERT INTO cart_recovery (customer_email, customer_name, cart_data, step) VALUES (?, ?, ?, 0)'
+                );
+                $stmt->execute([$email, $name, is_string($cart) ? $cart : json_encode($cart)]);
+                return "✅ কার্ট রিকভারি তালিকায় যোগ হয়েছে: {$email}";
+            } catch (Exception $e) {
+                return "❌ কার্ট যোগে ত্রুটি: " . $e->getMessage();
+            }
         }
 
         // ডিফল্ট: AI দিয়ে ইমেইল ড্রাফট তৈরি
@@ -285,6 +325,8 @@ class Agents {
      * পেন্ডিং কার্ট রিকভারি ইমেইল পাঠান
      */
     private function cartRecoverySendPending(): string {
+        if (!$this->db->isConnected()) return '❌ ডাটাবেস কানেকশন নেই।';
+
         $storeName = $this->db->getSetting('store_name', 'আমার স্টোর');
         $step1h = (int)$this->db->getSetting('cart_step1_hours', '1');
         $step2h = (int)$this->db->getSetting('cart_step2_hours', '24');
@@ -616,15 +658,20 @@ class Agents {
     // ────────────────────────────────────────────────────────────
     private function orderPrep(array $input): string {
         $action = $input['action'] ?? 'pending';
-        $orderId = $input['order_id'] ?? null;
 
         if ($action === 'mark_forwarded') {
             $id = (int)($input['id'] ?? 0);
             if ($id <= 0) return '❌ অর্ডার ID দিন।';
-            $stmt = $this->db->pdo->prepare('UPDATE agent_orders SET status = "forwarded", forwarded_at = NOW() WHERE id = ?');
-            $stmt->execute([$id]);
-            return "✅ অর্ডার #{$id} BusinessKoro-তে ফরওয়ার্ড হিসেবে চিহ্নিত।";
+            try {
+                $stmt = $this->db->pdo->prepare('UPDATE agent_orders SET status = "forwarded", forwarded_at = NOW() WHERE id = ?');
+                $stmt->execute([$id]);
+                return "✅ অর্ডার #{$id} BusinessKoro-তে ফরওয়ার্ড হিসেবে চিহ্নিত।";
+            } catch (Exception $e) {
+                return "❌ আপডেট ত্রুটি: " . $e->getMessage();
+            }
         }
+
+        if (!$this->db->isConnected()) return '❌ ডাটাবেস কানেকশন নেই।';
 
         // পেন্ডিং অর্ডার ফরম্যাট করুন
         $orders = $this->woo->getOrders();
@@ -675,15 +722,19 @@ class Agents {
             $output .= $formatted . "\n";
 
             // লোকাল DB-তে সেভ
-            $stmt = $this->db->pdo->prepare(
-                'INSERT INTO agent_orders (woo_order_id, customer_name, customer_email, total, status, bk_formatted)
-                 VALUES (?, ?, ?, ?, "pending", ?)
-                 ON DUPLICATE KEY UPDATE bk_formatted = ?'
-            );
-            $stmt->execute([
-                $id, $name, $billing['email'] ?? '',
-                $total, $formatted, $formatted
-            ]);
+            try {
+                $stmt = $this->db->pdo->prepare(
+                    'INSERT INTO agent_orders (woo_order_id, customer_name, customer_email, total, status, bk_formatted)
+                     VALUES (?, ?, ?, ?, "pending", ?)
+                     ON DUPLICATE KEY UPDATE bk_formatted = ?'
+                );
+                $stmt->execute([
+                    $id, $name, $billing['email'] ?? '',
+                    $total, $formatted, $formatted
+                ]);
+            } catch (Exception $e) {
+                // সেভ ব্যর্ত হলেও আউটপুট দেখান
+            }
         }
 
         $output .= "\n⚠️ BusinessKoro-তে ম্যানুয়ালি এন্ট্রি করুন (তাদের API নেই)।";
