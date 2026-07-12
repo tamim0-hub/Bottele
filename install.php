@@ -10,6 +10,11 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// CSRF টোকেন তৈরি (ইনস্টলার সুরক্ষা)
+if (empty($_SESSION['install_csrf'])) {
+    $_SESSION['install_csrf'] = bin2hex(random_bytes(32));
+}
+
 // নিরাপত্তা: install.lock ফাইল থাকলে ইনস্টলার বন্ধ
 if (file_exists(__DIR__ . '/install.lock')) {
     die('🚫 ইনস্টলার লক করা আছে। পুনরায় ইনস্টল করতে install.lock ফাইল ডিলিট করুন।');
@@ -23,8 +28,12 @@ $error = '';
 $alreadyInstalled = file_exists(__DIR__ . '/config.php') && $step < 5;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // ইতিমধ্যে ইনস্টল হলে config.php ওভাররাইট রোধ
-    if (file_exists(__DIR__ . '/config.php')) {
+    // CSRF যাচাই
+    $csrfToken = $_POST['install_csrf'] ?? '';
+    if (empty($csrfToken) || !hash_equals($_SESSION['install_csrf'], $csrfToken)) {
+        $error = 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করে আবার চেষ্টা করুন।';
+        $step = max(1, $step - 1);
+    } elseif (file_exists(__DIR__ . '/config.php')) {
         $error = 'AI Office ইতিমধ্যে ইনস্টল হয়েছে। config.php ডিলিট না করে পুনরায় ইনস্টল করা যাবে না।';
         $step = 1;
     } elseif ($step === 2) {
@@ -124,6 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // ইনস্টলার লক করুন — পুনরায় ইনস্টল রোধ
                 file_put_contents(__DIR__ . '/install.lock', date('Y-m-d H:i:s'));
 
+                // CSRF টোকেন রিজেনারেট (টোকেন রিইউজ রোধ)
+                $_SESSION['install_csrf'] = bin2hex(random_bytes(32));
+
                 // ডেমো ডাটা অফার
                 if (isset($_POST['seed_demo']) && $_POST['seed_demo'] === '1') {
                     Demo::seed($dbObj);
@@ -173,6 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- ধাপ ১: ডাটাবেস কানেকশন -->
                 <form method="POST" class="login-form">
                     <input type="hidden" name="step" value="2">
+                    <input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <h3>📊 ডাটাবেস কানেকশন</h3>
                     <p class="text-muted">আপনার MySQL ডাটাবেস তথ্য দিন (cPanel থেকে পাবেন)।</p>
                     <div class="form-group">
@@ -198,6 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <!-- ধাপ ২: অ্যাডমিন সেটআপ -->
                 <form method="POST" class="login-form">
                     <input type="hidden" name="step" value="4">
+                    <input type="hidden" name="install_csrf" value="<?= htmlspecialchars($_SESSION['install_csrf']) ?>">
                     <h3>👤 অ্যাডমিন অ্যাকাউন্ট</h3>
                     <p class="text-muted">এই তথ্য দিয়ে আপনি লগইন করবেন।</p>
                     <div class="form-group">

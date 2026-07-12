@@ -20,6 +20,7 @@
         initTabs();
         loadState();
         loadSettings();
+        loadChatHistory();
 
         // পোলিং — প্রতি ৫ সেকেন্ডে স্টেট রিফ্রেশ
         setInterval(loadState, POLL_INTERVAL);
@@ -241,6 +242,35 @@
     };
 
     // ── চ্যাট ──────────────────────────────────────────────
+    async function loadChatHistory() {
+        try {
+            const res = await fetch('api/chat.php');
+            if (res.status === 401) { window.location.href = 'login.php'; return; }
+            const data = await res.json();
+            if (!data.success || !data.messages || data.messages.length === 0) return;
+
+            const container = document.getElementById('chat-messages');
+            if (!container) return;
+
+            // empty state সরান
+            const empty = container.querySelector('.empty-state');
+            if (empty) empty.remove();
+
+            // পুরানো মেসেজ দেখান (যদি ইতিমধ্যে মেসেজ না থাকে)
+            if (container.querySelectorAll('.chat-msg').length > 0) return;
+
+            data.messages.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'chat-msg ' + m.role;
+                div.textContent = m.content;
+                container.appendChild(div);
+            });
+            container.scrollTop = container.scrollHeight;
+        } catch (e) {
+            // সাইলেন্ট
+        }
+    }
+
     window.sendChat = async function() {
         const input = document.getElementById('chat-input');
         const message = input?.value?.trim();
@@ -338,7 +368,11 @@
 
             const result = await res.json();
             if (result.success) {
-                showToast('✅ সেটিংস সেভ হয়েছে!', 'success');
+                if (result.warnings && result.warnings.length > 0) {
+                    showToast('⚠️ ' + result.warnings.join('; '), 'warning');
+                } else {
+                    showToast('✅ সেটিংস সেভ হয়েছে!', 'success');
+                }
             } else {
                 showToast('❌ সেভ ব্যর্থ: ' + (result.error || ''), 'error');
             }

@@ -181,6 +181,7 @@ class Woo {
 
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_TIMEOUT        => 30,
             CURLOPT_HTTPHEADER     => $headers,
             CURLOPT_USERPWD        => $this->ck . ':' . $this->cs,

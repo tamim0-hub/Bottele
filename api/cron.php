@@ -65,6 +65,7 @@ try {
         'time'    => date('Y-m-d H:i:s'),
     ], JSON_UNESCAPED_UNICODE);
 } catch (Exception $e) {
+    error_log('cron.php error: ' . $e->getMessage());
     http_response_code(500);
-    echo json_encode(['error' => 'ক্রন ত্রুটি: ' . $e->getMessage()]);
+    echo json_encode(['error' => 'ক্রন ত্রুটি। বিস্তারিত সার্ভার লগে দেখুন।']);
 }

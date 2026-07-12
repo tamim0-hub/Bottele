@@ -211,6 +211,12 @@ class Mailer {
             $email .= "Content-Type: text/html; charset=UTF-8\r\n\r\n";
             $email .= $html . "\r\n\r\n";
             $email .= "--{$boundary}--\r\n";
+
+            // SMTP dot-stuffing: লাইন শুরুতে থাকা '.' কে '..' দিয়ে এস্কেপ করুন
+            // (শেষের এন্ড-অফ-ডাটা মার্কার যোগার আগে)
+            $email = preg_replace('/^(\\.)/m', '..$1', $email);
+
+            // SMTP এন্ড-অফ-ডাটা মার্কার
             $email .= ".\r\n";
 
             $this->smtpSend($socket, $email);

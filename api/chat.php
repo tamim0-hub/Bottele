@@ -15,9 +15,20 @@ if (!isset($auth)) {
 
 $auth->requireLogin(true);
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    // চ্যাট হিস্ট্রি লোড (পেজ রিফ্রেশে পুরানো মেসেজ দেখাতে)
+    try {
+        $history = $db->getChatHistory(50);
+        echo json_encode(['success' => true, 'messages' => $history], JSON_UNESCAPED_UNICODE);
+    } catch (Exception $e) {
+        echo json_encode(['success' => false, 'messages' => []]);
+    }
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
-    echo json_encode(['error' => 'শুধু POST মেথড।']);
+    echo json_encode(['error' => 'GET (হিস্ট্রি) বা POST (মেসেজ) ব্যবহার করুন।']);
     exit;
 }
 

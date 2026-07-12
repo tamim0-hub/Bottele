@@ -422,6 +422,12 @@ class Agents {
             return '❌ অডিট করার জন্য URL দিন অথবা WooCommerce URL কনফিগ করুন।';
         }
 
+        // শুধুমাত্র http/https স্কিম অনুমোদিত
+        $scheme = parse_url($url, PHP_URL_SCHEME);
+        if (!in_array(strtolower($scheme), ['http', 'https'], true)) {
+            return '❌ শুধুমাত্র HTTP/HTTPS URL অনুমোদিত।';
+        }
+
         // SSRF সুরক্ষা — প্রাইভেট/অভ্যন্তরীণ IP ব্লক করুন
         $host = parse_url($url, PHP_URL_HOST);
         if (!$host) {
@@ -607,22 +613,45 @@ class Agents {
     }
 
     /**
-     * URL ফেচ — সার্ভার-সাইড ক্রল
+     * URL ফেচ — সার্ভার-সাইড ক্রল (SSRF-সুরক্ষিত রিডাইরেক্ট)
+     * CURLOPT_FOLLOWLOCATION বন্ধ রেখে ম্যানুয়ালি রিডাইরেক্ট হ্যান্ডেল করে
+     * যাতে প্রতিটি রিডাইরেক্ট URL-এর IP SSRF চেক পাস করে।
      */
-    private function fetchUrl(string $url): string {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 15,
-            CURLOPT_USERAGENT      => 'AI-Office-SEO-Bot/1.0',
-            CURLOPT_SSL_VERIFYPEER => false,
-        ]);
-        $html = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
+    private function fetchUrl(string $url, int $maxRedirects = 5): string {
+        $currentUrl = $url;
+        $redirects = 0;
 
-        return $httpCode === 200 ? (string)$html : '';
+        while ($redirects <= $maxRedirects) {
+            $ch = curl_init($currentUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_FOLLOWLOCATION => false, // ম্যানুয়াল রিডাইরেক্ট — SSRF সুরক্ষা
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_TIMEOUT        => 15,
+                CURLOPT_USERAGENT      => 'AI-Office-SEO-Bot/1.0',
+                CURLOPT_SSL_VERIFYPEER => false,
+            ]);
+            $html = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+            curl_close($ch);
+
+            // রিডাইরেক্ট হ্যান্ডেল (3xx)
+            if ($httpCode >= 300 && $httpCode < 400 && !empty($redirectUrl)) {
+                $redirects++;
+                // রিডাইরেক্ট URL-এও SSRF চেক করুন
+                $rHost = parse_url($redirectUrl, PHP_URL_HOST);
+                if (!$rHost) break;
+                $rResolved = gethostbyname($rHost);
+                if ($this->isPrivateIp($rResolved)) break; // প্রাইভেট IP-তে রিডাইরেক্ট ব্লক
+                $currentUrl = $redirectUrl;
+                continue;
+            }
+
+            return $httpCode === 200 ? (string)$html : '';
+        }
+
+        return ''; // সর্বোচ্চ রিডাইরেক্ট বা SSRF ব্লক
     }
 
     // ────────────────────────────────────────────────────────────
