@@ -22,12 +22,16 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'] ?? '';
     $password = $_POST['password'] ?? '';
-    $result = $auth->login($username, $password);
-    if ($result['success']) {
-        header('Location: index.php');
-        exit;
+    if (isset($auth)) {
+        $result = $auth->login($username, $password);
+        if ($result['success']) {
+            header('Location: index.php');
+            exit;
+        }
+        $error = $result['error'] ?? 'লগইন ব্যর্থ।';
+    } else {
+        $error = 'সিস্টেম ত্রুটি — অথেনটিকেশন লোড হয়নি।';
     }
-    $error = $result['error'] ?? 'লগইন ব্যর্থ।';
 }
 
 $demoMode = defined('DEMO_MODE') && DEMO_MODE;

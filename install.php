@@ -21,8 +21,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($step === 2) {
         // ডাটাবেস টেস্ট
         $dbHost = $_POST['db_host'] ?? 'localhost';
-        $dbName = preg_replace('/[^a-zA-Z0-9_]/', '', $_POST['db_name'] ?? '');
-        $dbUser = preg_replace('/[^a-zA-Z0-9_]/', '', $_POST['db_user'] ?? '');
+        $dbName = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['db_name'] ?? '');
+        $dbUser = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['db_user'] ?? '');
         $dbPass = $_POST['db_pass'] ?? '';
 
         if (empty($dbName) || empty($dbUser)) {

@@ -18,14 +18,24 @@ class DB {
             ]);
         } catch (PDOException $e) {
             // প্রোডাকশনে ডিটেইল হাইড করুন
-            die('ডাটাবেস কানেকশন ব্যর্থ: ' . (defined('DEMO_MODE') && DEMO_MODE ? 'ডেমো মোডে ডাটাবেস লাগবে না' : $e->getMessage()));
+            $this->pdo = null;
         }
+    }
+
+    /**
+     * ডাটাবেস কানেক্টেড কিনা
+     */
+    public function isConnected(): bool {
+        return $this->pdo !== null;
     }
 
     /**
      * সব টেবিল তৈরি করুন — install.php থেকে কল হয়
      */
     public function setup(): void {
+        if (!$this->pdo) {
+            throw new RuntimeException('ডাটাবেস কানেকশন নেই।');
+        }
         $sql = file_get_contents(__DIR__ . '/../setup.sql');
         // Split on CREATE TABLE boundaries for safer execution
         $statements = array_filter(
@@ -57,6 +67,7 @@ class DB {
      */
     public function getSetting(string $key, string $default = ''): string {
         try {
+            if (!$this->pdo) return $default;
             $stmt = $this->pdo->prepare('SELECT setting_value FROM agent_settings WHERE setting_key = ?');
             $stmt->execute([$key]);
             $row = $stmt->fetch();
@@ -70,6 +81,7 @@ class DB {
      * এজেন্ট সেটিং সেভ করুন
      */
     public function setSetting(string $key, string $value): void {
+        if (!$this->pdo) return;
         $stmt = $this->pdo->prepare(
             'INSERT INTO agent_settings (setting_key, setting_value) VALUES (?, ?)
              ON DUPLICATE KEY UPDATE setting_value = ?, updated_at = NOW()'
@@ -81,83 +93,114 @@ class DB {
      * সব সেটিং পড়ুন
      */
     public function getAllSettings(): array {
-        $stmt = $this->pdo->query('SELECT setting_key, setting_value FROM agent_settings');
-        $rows = $stmt->fetchAll();
-        $out = [];
-        foreach ($rows as $r) {
-            $out[$r['setting_key']] = $r['setting_value'];
+        if (!$this->pdo) return [];
+        try {
+            $stmt = $this->pdo->query('SELECT setting_key, setting_value FROM agent_settings');
+            $rows = $stmt->fetchAll();
+            $out = [];
+            foreach ($rows as $r) {
+                $out[$r['setting_key']] = $r['setting_value'];
+            }
+            return $out;
+        } catch (Exception $e) {
+            return [];
         }
-        return $out;
     }
 
     /**
      * এজেন্ট লগ যোগ করুন
      */
     public function addLog(string $agent, string $action, string $input = '', string $output = '', string $status = 'success'): int {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO agent_logs (agent, action, input_summary, output_summary, status) VALUES (?, ?, ?, ?, ?)'
-        );
-        $stmt->execute([$agent, $action, mb_substr($input, 0, 500), mb_substr($output, 0, 2000), $status]);
-        return (int)$this->pdo->lastInsertId();
+        if (!$this->pdo) return 0;
+        try {
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO agent_logs (agent, action, input_summary, output_summary, status) VALUES (?, ?, ?, ?, ?)'
+            );
+            $stmt->execute([$agent, $action, mb_substr($input, 0, 500), mb_substr($output, 0, 2000), $status]);
+            return (int)$this->pdo->lastInsertId();
+        } catch (Exception $e) {
+            return 0;
+        }
     }
 
     /**
      * এজেন্ট স্টেট আপডেট করুন
      */
     public function setAgentState(string $agent, string $state, string $output = ''): void {
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO agent_state (agent, state, last_run, last_output, run_count, error_count)
-             VALUES (?, ?, NOW(), ?, 1, 0)
-             ON DUPLICATE KEY UPDATE
-               state = ?,
-               last_run = NOW(),
-               last_output = ?,
-               run_count = run_count + 1,
-               error_count = error_count + IF(? = "error", 1, 0),
-               updated_at = NOW()'
-        );
-        $stmt->execute([$agent, $state, $output, $state, $output, $state]);
+        if (!$this->pdo) return;
+        try {
+            $stmt = $this->pdo->prepare(
+                'INSERT INTO agent_state (agent, state, last_run, last_output, run_count, error_count)
+                 VALUES (?, ?, NOW(), ?, 1, 0)
+                 ON DUPLICATE KEY UPDATE
+                   state = ?,
+                   last_run = NOW(),
+                   last_output = ?,
+                   run_count = run_count + 1,
+                   error_count = error_count + IF(? = "error", 1, 0),
+                   updated_at = NOW()'
+            );
+            $stmt->execute([$agent, $state, $output, $state, $output, $state]);
+        } catch (Exception $e) {
+            // সাইলেন্ট — টেবিল না থাকলে
+        }
     }
 
     /**
      * এজেন্ট স্টেট সেট করুন (working/idle/error)
      */
     public function setAgentRunning(string $agent, bool $running): void {
-        if ($running) {
-            $stmt = $this->pdo->prepare(
-                'INSERT INTO agent_state (agent, state) VALUES (?, "working")
-                 ON DUPLICATE KEY UPDATE state = "working", updated_at = NOW()'
-            );
-        } else {
-            $stmt = $this->pdo->prepare(
-                'UPDATE agent_state SET state = "idle", updated_at = NOW() WHERE agent = ?'
-            );
+        if (!$this->pdo) return;
+        try {
+            if ($running) {
+                $stmt = $this->pdo->prepare(
+                    'INSERT INTO agent_state (agent, state) VALUES (?, "working")
+                     ON DUPLICATE KEY UPDATE state = "working", updated_at = NOW()'
+                );
+            } else {
+                $stmt = $this->pdo->prepare(
+                    'UPDATE agent_state SET state = "idle", updated_at = NOW() WHERE agent = ?'
+                );
+            }
+            $stmt->execute([$agent]);
+        } catch (Exception $e) {
+            // সাইলেন্ট
         }
-        $stmt->execute([$agent]);
     }
 
     /**
      * সব এজেন্টের স্টেট পড়ুন
      */
     public function getAgentStates(): array {
-        $stmt = $this->pdo->query('SELECT * FROM agent_state ORDER BY agent');
-        return $stmt->fetchAll();
+        if (!$this->pdo) return [];
+        try {
+            $stmt = $this->pdo->query('SELECT * FROM agent_state ORDER BY agent');
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            return [];
+        }
     }
 
     /**
      * রিসেন্ট লগ পড়ুন
      */
     public function getRecentLogs(int $limit = 50): array {
-        $stmt = $this->pdo->prepare('SELECT * FROM agent_logs ORDER BY created_at DESC LIMIT ?');
-        $stmt->execute([$limit]);
-        return $stmt->fetchAll();
+        if (!$this->pdo) return [];
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM agent_logs ORDER BY created_at DESC LIMIT ?');
+            $stmt->execute([$limit]);
+            return $stmt->fetchAll();
+        } catch (Exception $e) {
+            return [];
+        }
     }
 
     /**
      * স্ট্যাটস বের করুন (ড্যাশবোর্ডের জন্য)
      */
     public function getStats(): array {
-        $stats = [];
+        if (!$this->pdo) return ['total_logs' => 0, 'today_logs' => 0, 'agents' => [], 'total_orders' => 0, 'pending_orders' => 0, 'active_carts' => 0, 'recovered_carts' => 0];
+        try {
 
         // মোট লগ
         $stmt = $this->pdo->query('SELECT COUNT(*) as total FROM agent_logs');
@@ -186,31 +229,49 @@ class DB {
         $stats['recovered_carts'] = (int)($stmt->fetch()['total'] ?? 0);
 
         return $stats;
+        } catch (Exception $e) {
+            return ['total_logs' => 0, 'today_logs' => 0, 'agents' => [], 'total_orders' => 0, 'pending_orders' => 0, 'active_carts' => 0, 'recovered_carts' => 0];
+        }
     }
 
     /**
      * চ্যাট মেসেজ সেভ করুন
      */
     public function saveChatMessage(string $role, string $content): int {
-        $stmt = $this->pdo->prepare('INSERT INTO chat_messages (role, content) VALUES (?, ?)');
-        $stmt->execute([$role, mb_substr($content, 0, 5000)]);
-        return (int)$this->pdo->lastInsertId();
+        if (!$this->pdo) return 0;
+        try {
+            $stmt = $this->pdo->prepare('INSERT INTO chat_messages (role, content) VALUES (?, ?)');
+            $stmt->execute([$role, mb_substr($content, 0, 5000)]);
+            return (int)$this->pdo->lastInsertId();
+        } catch (Exception $e) {
+            return 0;
+        }
     }
 
     /**
      * চ্যাট হিস্ট্রি পড়ুন
      */
     public function getChatHistory(int $limit = 50): array {
-        $stmt = $this->pdo->prepare('SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?');
-        $stmt->execute([$limit]);
-        return array_reverse($stmt->fetchAll());
+        if (!$this->pdo) return [];
+        try {
+            $stmt = $this->pdo->prepare('SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?');
+            $stmt->execute([$limit]);
+            return array_reverse($stmt->fetchAll());
+        } catch (Exception $e) {
+            return [];
+        }
     }
 
     /**
      * ক্রন লগ যোগ
      */
     public function addCronLog(string $job, string $result): void {
-        $stmt = $this->pdo->prepare('INSERT INTO cron_log (job, result) VALUES (?, ?)');
-        $stmt->execute([$job, mb_substr($result, 0, 1000)]);
+        if (!$this->pdo) return;
+        try {
+            $stmt = $this->pdo->prepare('INSERT INTO cron_log (job, result) VALUES (?, ?)');
+            $stmt->execute([$job, mb_substr($result, 0, 1000)]);
+        } catch (Exception $e) {
+            // সাইলেন্ট
+        }
     }
 }

@@ -11,8 +11,8 @@ $auth->requireLogin(false);
 $username  = htmlspecialchars($auth->username());
 $csrfToken = $auth->csrfToken();
 $demoMode  = defined('DEMO_MODE') && DEMO_MODE;
-$groqDemo  = (new Groq())->isDemo();
-$wooDemo   = (new Woo())->isDemo();
+$groqDemo  = $groq->isDemo();
+$wooDemo   = $woo->isDemo();
 $license   = checkLicense();
 $siteUrl   = defined('SITE_URL') ? SITE_URL : '';
 $cronToken = $db->getSetting('cron_token', '');
@@ -202,14 +202,14 @@ $cronToken = $db->getSetting('cron_token', '');
                     <h3>🤖 এজেন্ট রানার</h3>
                     <p class="text-muted">যেকোনো এজেন্ট ম্যানুয়ালি চালান:</p>
                     <div class="agent-runner-grid">
-                        <button onclick="runAgent('product_import')" class="btn btn-outline btn-sm">📦 পণ্য ইম্পোর্ট</button>
+                        <button onclick="toggleAgentForm('product_import')" class="btn btn-outline btn-sm">📦 পণ্য ইম্পোর্ট</button>
                         <button onclick="runAgent('price')" class="btn btn-outline btn-sm">💰 দাম</button>
                         <button onclick="runAgent('inventory')" class="btn btn-outline btn-sm">📋 ইনভেন্টরি</button>
-                        <button onclick="runAgent('cart_recovery')" class="btn btn-outline btn-sm">🛒 কার্ট রিকভারি</button>
-                        <button onclick="runAgent('social')" class="btn btn-outline btn-sm">📱 সোশ্যাল</button>
-                        <button onclick="runAgent('seo')" class="btn btn-outline btn-sm">🔍 SEO</button>
-                        <button onclick="runAgent('content')" class="btn btn-outline btn-sm">📝 কনটেন্ট</button>
-                        <button onclick="runAgent('customer_reply')" class="btn btn-outline btn-sm">💬 কাস্টমার রিপ্লাই</button>
+                        <button onclick="toggleAgentForm('cart_recovery')" class="btn btn-outline btn-sm">🛒 কার্ট রিকভারি</button>
+                        <button onclick="toggleAgentForm('social')" class="btn btn-outline btn-sm">📱 সোশ্যাল</button>
+                        <button onclick="toggleAgentForm('seo')" class="btn btn-outline btn-sm">🔍 SEO</button>
+                        <button onclick="toggleAgentForm('content')" class="btn btn-outline btn-sm">📝 কনটেন্ট</button>
+                        <button onclick="toggleAgentForm('customer_reply')" class="btn btn-outline btn-sm">💬 কাস্টমার রিপ্লাই</button>
                         <button onclick="runAgent('order_prep')" class="btn btn-outline btn-sm">📦 অর্ডার প্রেপ</button>
                     </div>
 

@@ -8,6 +8,12 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+if (!isset($auth)) {
+    http_response_code(503);
+    echo json_encode(['error' => 'সিস্টেম ইনস্টল হয়নি।']);
+    exit;
+}
+
 $auth->requireLogin(true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {

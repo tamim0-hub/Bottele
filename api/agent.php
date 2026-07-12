@@ -7,6 +7,13 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+// বুটস্ট্র্যাপ লোড না হলে
+if (!isset($auth) || !isset($agents)) {
+    http_response_code(503);
+    echo json_encode(['error' => 'সিস্টেম ইনস্টল হয়নি।']);
+    exit;
+}
+
 // অথেনটিকেশন
 $auth->requireLogin(true);
 

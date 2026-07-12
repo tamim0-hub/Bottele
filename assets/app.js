@@ -49,6 +49,23 @@
     // গ্লোবাল (অফিস ক্যানভাস থেকে কল হয়)
     window.switchTab = switchTab;
 
+    // ── এজেন্ট ফর্ম টগল ────────────────────────────────────
+    window.toggleAgentForm = function(agent) {
+        const formId = 'form-' + agent;
+        const formEl = document.getElementById(formId);
+        if (!formEl) {
+            // ফর্ম নেই — সরাসরি রান করুন
+            runAgent(agent);
+            return;
+        }
+        // অন্য সব ফর্ম লুকান
+        document.querySelectorAll('.agent-form').forEach(f => {
+            if (f.id !== formId) f.style.display = 'none';
+        });
+        // এই ফর্ম টগল
+        formEl.style.display = formEl.style.display === 'none' ? 'block' : 'none';
+    };
+
     // ── স্টেট লোড ─────────────────────────────────────────
     async function loadState() {
         try {
@@ -65,6 +82,18 @@
         }
     }
 
+    // এজেন্ট ম্যাপিং (ডুপ্লিকেট এড়াতে একবার ডিফাইন)
+    const AGENT_EMOJI = {
+        leader: '👔', product_import: '📦', price: '💰', inventory: '📋',
+        cart_recovery: '🛒', social: '📱', seo: '🔍', content: '📝',
+        customer_reply: '💬', order_prep: '📦'
+    };
+    const AGENT_NAME = {
+        leader: 'লিডার', product_import: 'পণ্য ইম্পোর্ট', price: 'দাম', inventory: 'ইনভেন্টরি',
+        cart_recovery: 'কার্ট রিকভারি', social: 'সোশ্যাল', seo: 'SEO', content: 'কনটেন্ট',
+        customer_reply: 'কাস্টমার রিপ্লাই', order_prep: 'অর্ডার প্রেপ'
+    };
+
     // ── ড্যাশবোর্ড আপডেট ─────────────────────────────────
     function updateDashboard(data) {
         // স্ট্যাট কার্ড
@@ -77,27 +106,16 @@
         // এজেন্ট পারফরম্যান্স গ্রিড
         const agentGrid = document.getElementById('agent-perf-grid');
         if (agentGrid && data.states) {
-            const emojiMap = {
-                leader: '👔', product_import: '📦', price: '💰', inventory: '📋',
-                cart_recovery: '🛒', social: '📱', seo: '🔍', content: '📝',
-                customer_reply: '💬', order_prep: '📦'
-            };
-            const nameMap = {
-                leader: 'লিডার', product_import: 'পণ্য ইম্পোর্ট', price: 'দাম', inventory: 'ইনভেন্টরি',
-                cart_recovery: 'কার্ট রিকভারি', social: 'সোশ্যাল', seo: 'SEO', content: 'কনটেন্ট',
-                customer_reply: 'কাস্টমার রিপ্লাই', order_prep: 'অর্ডার প্রেপ'
-            };
-
             agentGrid.innerHTML = data.states.map(s => {
                 const stateClass = s.state === 'working' ? 'state-working' : s.state === 'error' ? 'state-error' : 'state-idle';
                 const stateLabel = s.state === 'working' ? '🔄 কাজ চলছে' : s.state === 'error' ? '❌ ত্রুটি' : '✅ আইডল';
-                return `<div class="agent-card ${stateClass}">
-                    <div class="agent-icon">${emojiMap[s.agent] || '🤖'}</div>
-                    <div class="agent-info">
-                        <div class="agent-name">${nameMap[s.agent] || s.agent}</div>
-                        <div class="agent-meta">${stateLabel} • রান: ${s.run_count || 0}</div>
-                    </div>
-                </div>`;
+                const safeAgent = escapeHtml(s.agent);
+                return '<div class="agent-card ' + stateClass + '">' +
+                    '<div class="agent-icon">' + (AGENT_EMOJI[s.agent] || '🤖') + '</div>' +
+                    '<div class="agent-info">' +
+                    '<div class="agent-name">' + (AGENT_NAME[s.agent] || safeAgent) + '</div>' +
+                    '<div class="agent-meta">' + stateLabel + ' • রান: ' + (s.run_count || 0) + '</div>' +
+                    '</div></div>';
             }).join('');
         }
 
@@ -109,12 +127,12 @@
             } else {
                 logList.innerHTML = data.logs.map(l => {
                     const time = l.created_at ? new Date(l.created_at).toLocaleString('bn-BD') : '';
-                    return `<div class="log-item">
-                        <span class="log-time">${time}</span>
-                        <span class="log-agent">${l.agent}</span>
-                        <span class="log-msg">${escapeHtml(l.input_summary || '')}</span>
-                        <span class="log-status ${l.status}">${l.status === 'success' ? '✅' : '❌'}</span>
-                    </div>`;
+                    return '<div class="log-item">' +
+                        '<span class="log-time">' + time + '</span>' +
+                        '<span class="log-agent">' + escapeHtml(l.agent) + '</span>' +
+                        '<span class="log-msg">' + escapeHtml(l.input_summary || '') + '</span>' +
+                        '<span class="log-status ' + escapeHtml(l.status) + '">' + (l.status === 'success' ? '✅' : '❌') + '</span>' +
+                        '</div>';
                 }).join('');
             }
         }
@@ -122,28 +140,26 @@
         // অফিস ডেস্ক আপডেট
         const desksEl = document.getElementById('agent-desks');
         if (desksEl && data.states) {
-            const emojiMap = {
-                leader: '👔', product_import: '📦', price: '💰', inventory: '📋',
-                cart_recovery: '🛒', social: '📱', seo: '🔍', content: '📝',
-                customer_reply: '💬', order_prep: '📦'
-            };
-            const nameMap = {
-                leader: 'লিডার', product_import: 'পণ্য ইম্পোর্ট', price: 'দাম', inventory: 'ইনভেন্টরি',
-                cart_recovery: 'কার্ট রিকভারি', social: 'সোশ্যাল', seo: 'SEO', content: 'কনটেন্ট',
-                customer_reply: 'কাস্টমার রিপ্লাই', order_prep: 'অর্ডার প্রেপ'
-            };
-
             desksEl.innerHTML = data.states.map(s => {
                 const cls = s.state === 'working' ? 'working' : s.state === 'error' ? 'error' : '';
                 const statusLabel = s.state === 'working' ? '🔄 কাজ চলছে' : s.state === 'error' ? '❌ ত্রুটি' : '✅ আইডল';
                 const lastRun = s.last_run ? timeAgo(s.last_run) : 'কখনো না';
-                return `<div class="desk-card ${cls}" onclick="runAgent('${s.agent}')">
-                    <div class="desk-emoji">${emojiMap[s.agent] || '🤖'}</div>
-                    <div class="desk-name">${nameMap[s.agent] || s.agent}</div>
-                    <div class="desk-status">${statusLabel}</div>
-                    <div class="desk-last-run">শেষ: ${lastRun}</div>
-                </div>`;
+                // সুরক্ষিত onclick — escapeHtml দিয়ে agent name সেনিটাইজ
+                const safeAgent = escapeHtml(s.agent);
+                return '<div class="desk-card ' + cls + '" data-agent="' + safeAgent + '">' +
+                    '<div class="desk-emoji">' + (AGENT_EMOJI[s.agent] || '🤖') + '</div>' +
+                    '<div class="desk-name">' + (AGENT_NAME[s.agent] || safeAgent) + '</div>' +
+                    '<div class="desk-status">' + statusLabel + '</div>' +
+                    '<div class="desk-last-run">শেষ: ' + lastRun + '</div>' +
+                    '</div>';
             }).join('');
+
+            // desk কার্ডে click event (onclick attribute এর বদলে — XSS-safe)
+            desksEl.querySelectorAll('.desk-card[data-agent]').forEach(card => {
+                card.addEventListener('click', function() {
+                    runAgent(this.dataset.agent);
+                });
+            });
         }
     }
 
@@ -277,6 +293,7 @@
     async function loadSettings() {
         try {
             const res = await fetch('api/settings.php');
+            if (res.status === 401) { window.location.href = 'login.php'; return; }
             if (!res.ok) return;
             const data = await res.json();
             if (!data.success) return;

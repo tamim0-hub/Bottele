@@ -7,7 +7,12 @@ require_once __DIR__ . '/../lib/bootstrap.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-// লগইন পেজে অথেনটিকেশন লাগবে না
+// কনফিগ না থাকলে বা $auth তৈরি না হলে
+if (!isset($auth)) {
+    echo json_encode(['loggedIn' => false, 'error' => 'ইনস্টল করা হয়নি।']);
+    exit;
+}
+
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 if ($action === 'login') {

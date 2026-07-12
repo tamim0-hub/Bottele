@@ -12,7 +12,6 @@
         CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
             if (typeof r === 'number') r = [r, r, r, r];
             const [tl, tr, br, bl] = r;
-            this.beginPath();
             this.moveTo(x + tl, y);
             this.lineTo(x + w - tr, y);
             this.quadraticCurveTo(x + w, y, x + w, y + tr);
