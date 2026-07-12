@@ -25,7 +25,7 @@ $alreadyInstalled = file_exists(__DIR__ . '/config.php') && $step < 5;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($step === 2) {
         // ডাটাবেস টেস্ট
-        $dbHost = $_POST['db_host'] ?? 'localhost';
+        $dbHost = preg_replace('/[^a-zA-Z0-9._:-]/', '', $_POST['db_host'] ?? 'localhost');
         $dbName = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['db_name'] ?? '');
         $dbUser = preg_replace('/[^a-zA-Z0-9_-]/', '', $_POST['db_user'] ?? '');
         $dbPass = $_POST['db_pass'] ?? '';
@@ -105,6 +105,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             require_once __DIR__ . '/lib/cron.php';
             require_once __DIR__ . '/lib/demo.php';
 
+            // সেশন থেকে সংবেদনশীল ডাটা মুছুন (নিরাপত্তা)
+            unset($_SESSION['install_db']);
+
             try {
                 $dbObj = new DB();
                 $dbObj->setup();
@@ -143,7 +146,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="login-header">
                 <div class="login-logo">🔧</div>
                 <h1>AI Office ইনস্টলার</h1>
-                <p>ধাপ <?= $step ?>/4</p>
+                <p>ধাপ <?= min($step, 4) ?>/4</p>
             </div>
 
             <?php if ($error): ?>

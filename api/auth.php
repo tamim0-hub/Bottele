@@ -44,6 +44,12 @@ if ($action === 'logout') {
 }
 
 if ($action === 'change_password') {
+    // CSRF যাচাই
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!$auth->verifyCsrf($csrfToken)) {
+        echo json_encode(['success' => false, 'error' => 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।']);
+        exit;
+    }
     $old = $_POST['old_password'] ?? '';
     $new = $_POST['new_password'] ?? '';
     $result = $auth->changePassword($old, $new);

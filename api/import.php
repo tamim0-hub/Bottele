@@ -22,6 +22,14 @@ if (!isset($auth) || !isset($agents)) {
 
 $auth->requireLogin(true);
 
+// CSRF টোকেন যাচাই
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? '');
+if (!$auth->verifyCsrf($csrfToken)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।']);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
     echo json_encode(['error' => 'শুধু POST মেথড।']);

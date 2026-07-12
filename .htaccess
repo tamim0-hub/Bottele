@@ -7,8 +7,13 @@
     Deny from all
 </Files>
 
-# lib/ ফোল্ডার ব্রাউজার থেকে বন্ধ
-RedirectMatch 403 ^/lib/
+# lib/ ফোল্ডার ব্রাউজার থেকে বন্ধ (যেকোনো ডিরেক্টরি লেভেলে)
+<IfModule mod_rewrite.c>
+    RewriteRule ^lib/ - [F,L]
+</IfModule>
+<IfModule !mod_rewrite.c>
+    RedirectMatch 403 (?i)/lib/
+</IfModule>
 
 # setup.sql বন্ধ
 <Files "setup.sql">
@@ -26,7 +31,10 @@ RedirectMatch 403 ^/lib/
 Options -Indexes
 
 # PHP এরর ডিসপ্লে বন্ধ (ডাবল প্রোটেকশন)
-php_flag display_errors off
+# CGI/FastCGI হোস্টে php_flag কাজ করে না, তাই IfModule দিয়ে রক্ষা
+<IfModule mod_php.c>
+    php_flag display_errors off
+</IfModule>
 
 # সিকিউরিটি হেডার
 <IfModule mod_headers.c>

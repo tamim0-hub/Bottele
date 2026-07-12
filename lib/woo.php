@@ -152,9 +152,9 @@ class Woo {
      */
     private function demoOrders(): array {
         return [
-            ['id' => 1001, 'status' => 'processing', 'total' => '1200', 'billing' => ['first_name' => 'রহিম', 'last_name' => 'উদ্দিন', 'email' => 'rahim@example.com', 'phone' => '01712345678', 'address_1' => 'মিরপুর-১০, ঢাকা']],
-            ['id' => 1002, 'status' => 'pending', 'total' => '2500', 'billing' => ['first_name' => 'ফাতেমা', 'last_name' => 'বেগম', 'email' => 'fatema@example.com', 'phone' => '01898765432', 'address_1' => 'উত্তরা, ঢাকা']],
-            ['id' => 1003, 'status' => 'completed', 'total' => '1800', 'billing' => ['first_name' => 'করিম', 'last_name' => 'হাসান', 'email' => 'karim@example.com', 'phone' => '01654321098', 'address_1' => 'চট্টগ্রাম']],
+            ['id' => 1001, 'status' => 'processing', 'total' => '1200', 'billing' => ['first_name' => 'রহিম', 'last_name' => 'উদ্দিন', 'email' => 'rahim@example.com', 'phone' => '01712345678', 'address_1' => 'মিরপুর-১০', 'city' => 'ঢাকা'], 'line_items' => [['name' => 'ওয়্যারলেস ইয়ারবাড', 'quantity' => 1]]],
+            ['id' => 1002, 'status' => 'pending', 'total' => '2500', 'billing' => ['first_name' => 'ফাতেমা', 'last_name' => 'বেগম', 'email' => 'fatema@example.com', 'phone' => '01898765432', 'address_1' => 'সেক্টর-৭', 'city' => 'উত্তরা, ঢাকা'], 'line_items' => [['name' => 'স্মার্ট ওয়াচ', 'quantity' => 1]]],
+            ['id' => 1003, 'status' => 'completed', 'total' => '1800', 'billing' => ['first_name' => 'করিম', 'last_name' => 'হাসান', 'email' => 'karim@example.com', 'phone' => '01654321098', 'address_1' => 'জি ই সি মোড', 'city' => 'চট্টগ্রাম'], 'line_items' => [['name' => 'ব্লুটুথ স্পিকার', 'quantity' => 1]]],
         ];
     }
 

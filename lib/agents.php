@@ -335,7 +335,7 @@ class Agents {
         $intervals = [$step1h, $step2h, $step3h];
 
         // যে কার্টগুলো এখন ইমেইল পাঠানোর সময় হয়েছে
-        $stmt = $this->db->pdo->query('SELECT * FROM cart_recovery WHERE purchased = 0 AND step < 3');
+        $stmt = $this->db->pdo->query('SELECT * FROM cart_recovery WHERE purchased = 0 AND step < 3 ORDER BY created_at ASC LIMIT 100');
         $carts = $stmt->fetchAll();
 
         $sent = 0;

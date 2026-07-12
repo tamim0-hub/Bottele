@@ -176,7 +176,7 @@
         try {
             const res = await fetch('api/agent.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfHeaders(),
                 body: JSON.stringify({ agent, input }),
             });
 
@@ -255,7 +255,7 @@
         try {
             const res = await fetch('api/chat.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfHeaders(),
                 body: JSON.stringify({ message }),
             });
 
@@ -332,7 +332,7 @@
         try {
             const res = await fetch('api/settings.php', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: csrfHeaders(),
                 body: JSON.stringify(data),
             });
 
@@ -357,7 +357,7 @@
             const res = await fetch('api/auth.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: 'action=change_password&old_password=' + encodeURIComponent(oldPass) + '&new_password=' + encodeURIComponent(newPass),
+                body: 'action=change_password&csrf_token=' + encodeURIComponent(getCsrfToken()) + '&old_password=' + encodeURIComponent(oldPass) + '&new_password=' + encodeURIComponent(newPass),
             });
 
             const data = await res.json();
@@ -384,6 +384,7 @@
 
         const formData = new FormData();
         formData.append('catalog', fileInput.files[0]);
+        formData.append('csrf_token', getCsrfToken());
 
         resultEl.innerHTML = '⏳ ইম্পোর্ট চলছে...';
 
@@ -473,6 +474,14 @@
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    function getCsrfToken() {
+        return document.getElementById('csrf-token')?.value || '';
+    }
+
+    function csrfHeaders() {
+        return { 'Content-Type': 'application/json', 'X-CSRF-Token': getCsrfToken() };
     }
 
     function timeAgo(dateStr) {

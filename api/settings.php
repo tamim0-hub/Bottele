@@ -17,14 +17,24 @@ if (!isset($auth)) {
 $auth->requireLogin(true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $settings = $db->getAllSettings();
-    echo json_encode(['success' => true, 'settings' => $settings], JSON_UNESCAPED_UNICODE);
+    $allSettings = $db->getAllSettings();
+    // সিক্রেট সেটিংস ব্রাউজারে পাঠাবেন না
+    unset($allSettings['cron_token']);
+    echo json_encode(['success' => true, 'settings' => $allSettings], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
+
+    // CSRF টোকেন যাচাই
+    $csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($data['csrf_token'] ?? '');
+    if (!$auth->verifyCsrf($csrfToken)) {
+        http_response_code(403);
+        echo json_encode(['error' => 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।']);
+        exit;
+    }
 
     // নন-সিক্রেট সেটিংস অনুমোদিত (কোনো API key, পাসওয়ার্ড নয়)
     $allowedKeys = [

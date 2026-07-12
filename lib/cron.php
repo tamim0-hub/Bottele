@@ -94,6 +94,7 @@ class Cron {
      */
     public function shouldRun(string $job, int $intervalHours = 24): bool {
         try {
+            if (!$this->db->isConnected()) return true;
             $stmt = $this->db->pdo->prepare(
                 'SELECT ran_at FROM cron_log WHERE job = ? ORDER BY ran_at DESC LIMIT 1'
             );
@@ -101,7 +102,7 @@ class Cron {
             $last = $stmt->fetch();
             if (!$last) return true;
             return (time() - strtotime($last['ran_at'])) >= ($intervalHours * 3600);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return true;
         }
     }

@@ -30,8 +30,8 @@ if (empty($expectedToken) && $db->isConnected()) {
     $db->setSetting('cron_token', $expectedToken);
 }
 
-// টোকেন মিলছে কিনা চেক
-if (empty($expectedToken) || $cronToken !== $expectedToken) {
+// টোকেন মিলছে কিনা চেক (timing-safe comparison)
+if (empty($expectedToken) || empty($cronToken) || !hash_equals($expectedToken, $cronToken)) {
     http_response_code(403);
     echo json_encode(['error' => 'অবৈধ ক্রন টোকেন।']);
     exit;

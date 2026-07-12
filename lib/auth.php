@@ -167,9 +167,10 @@ class Auth {
     // ── ব্রুট-ফোর্স প্রোটেকশন ────────────────────────────────
 
     /**
-     * লগইন ব্লক আছে কিনা
+     * লগইন ব্লক আছে কিনা (সেশন + IP-ভিত্তিক ডাবল চেক)
      */
     private function isLoginBlocked(): bool {
+        // সেশন-ভিত্তিক চেক
         $attempts = (int)($_SESSION['login_attempts'] ?? 0);
         $lastAttempt = (int)($_SESSION['login_last_attempt'] ?? 0);
         if ($attempts >= 5 && (time() - $lastAttempt) < 900) {
@@ -179,15 +180,45 @@ class Auth {
         if ($attempts >= 5 && (time() - $lastAttempt) >= 900) {
             $this->clearFailedLogins();
         }
+
+        // IP-ভিত্তিক চেক (সেশন বাইপাস রোধ)
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        if (!empty($ip)) {
+            $ipFile = sys_get_temp_dir() . '/ai_office_login_' . md5($ip);
+            if (file_exists($ipFile)) {
+                $data = json_decode(file_get_contents($ipFile), true);
+                if ($data && ($data['attempts'] ?? 0) >= 10 && (time() - ($data['last'] ?? 0)) < 900) {
+                    return true;
+                }
+                if ($data && ($data['attempts'] ?? 0) >= 10 && (time() - ($data['last'] ?? 0)) >= 900) {
+                    @unlink($ipFile);
+                }
+            }
+        }
+
         return false;
     }
 
     /**
-     * ব্যর্থ লগইন রেকর্ড
+     * ব্যর্থ লগইন রেকর্ড (সেশন + IP ফাইল)
      */
     private function recordFailedLogin(): void {
         $_SESSION['login_attempts'] = (int)($_SESSION['login_attempts'] ?? 0) + 1;
         $_SESSION['login_last_attempt'] = time();
+
+        // IP-ভিত্তিক কাউন্টার
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        if (!empty($ip)) {
+            $ipFile = sys_get_temp_dir() . '/ai_office_login_' . md5($ip);
+            $data = ['attempts' => 0, 'last' => 0];
+            if (file_exists($ipFile)) {
+                $existing = json_decode(file_get_contents($ipFile), true);
+                if ($existing) $data = $existing;
+            }
+            $data['attempts'] = ($data['attempts'] ?? 0) + 1;
+            $data['last'] = time();
+            @file_put_contents($ipFile, json_encode($data));
+        }
     }
 
     /**
@@ -196,5 +227,12 @@ class Auth {
     private function clearFailedLogins(): void {
         $_SESSION['login_attempts'] = 0;
         $_SESSION['login_last_attempt'] = 0;
+
+        // IP ফাইলও রিসেট (সফল লগইনে)
+        $ip = $_SERVER['REMOTE_ADDR'] ?? '';
+        if (!empty($ip)) {
+            $ipFile = sys_get_temp_dir() . '/ai_office_login_' . md5($ip);
+            @unlink($ipFile);
+        }
     }
 }

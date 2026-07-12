@@ -30,6 +30,14 @@ if (empty($message)) {
     exit;
 }
 
+// CSRF টোকেন যাচাই
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($data['csrf_token'] ?? '');
+if (!$auth->verifyCsrf($csrfToken)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।']);
+    exit;
+}
+
 // মেসেজ সাইজ লিমিট — ১০০০ অক্ষর
 if (mb_strlen($message) > 1000) {
     echo json_encode(['error' => 'মেসেজ ১০০০ অক্ষরের মধ্যে দিন।']);

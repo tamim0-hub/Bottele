@@ -19,7 +19,10 @@ try {
     $states   = $db->getAgentStates();
     $logs     = $db->getRecentLogs(30);
     $stats    = $db->getStats();
-    $settings = $db->getAllSettings();
+    $allSettings = $db->getAllSettings();
+    // সিক্রেট সেটিংস ব্রাউজারে পাঠাবেন না
+    unset($allSettings['cron_token']);
+    $settings = $allSettings;
 
     echo json_encode([
         'success'  => true,

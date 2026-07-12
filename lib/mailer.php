@@ -151,7 +151,12 @@ class Mailer {
             $this->smtpRead($socket);
 
             // EHLO
-            $this->smtpSend($socket, "EHLO " . ($this->fromEmail ? explode('@', $this->fromEmail)[1] : 'localhost'));
+            $ehloDomain = 'localhost';
+            if ($this->fromEmail && str_contains($this->fromEmail, '@')) {
+                $parts = explode('@', $this->fromEmail);
+                $ehloDomain = $parts[1] ?? 'localhost';
+            }
+            $this->smtpSend($socket, "EHLO " . $ehloDomain);
             $this->smtpRead($socket);
 
             // STARTTLS for port 587
@@ -161,7 +166,7 @@ class Mailer {
                 if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
                     return ['success' => false, 'error' => 'STARTTLS ব্যর্থ।'];
                 }
-                $this->smtpSend($socket, "EHLO " . ($this->fromEmail ? explode('@', $this->fromEmail)[1] : 'localhost'));
+                $this->smtpSend($socket, "EHLO " . $ehloDomain);
                 $this->smtpRead($socket);
             }
 

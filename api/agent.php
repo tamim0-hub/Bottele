@@ -54,6 +54,14 @@ if (empty($agent)) {
     exit;
 }
 
+// CSRF টোকেন যাচাই
+$csrfToken = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($data['csrf_token'] ?? '');
+if (!$auth->verifyCsrf($csrfToken)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'CSRF টোকেন অবৈধ। পেজ রিফ্রেশ করুন।']);
+    exit;
+}
+
 // বৈধ এজেন্ট চেক
 $validAgents = ['leader', 'product_import', 'price', 'inventory', 'cart_recovery', 'social', 'seo', 'content', 'customer_reply', 'order_prep'];
 
