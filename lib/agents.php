@@ -141,7 +141,9 @@ class Agents {
 
         // Groq-কে description + SEO লিখতে বলুন
         $systemPrompt = 'তুমি একজন ই-কমার্স কপিরাইটার। বাংলায় পণ্যের বিবরণ, SEO title, meta description লিখো। JSON ফরম্যাটে দাও: {"description":"...","seo_title":"...","meta_description":"...","tags":["..."]}';
-        $userPrompt = "পণ্যের নাম: {$name}\nক্যাটেগরি: {$category}\nহোলসেল মূল্য: ৳{$wholesale}";
+        $safeName = $this->sanitizeForPrompt($name, 200);
+        $safeCategory = $this->sanitizeForPrompt($category, 100);
+        $userPrompt = "পণ্যের নাম: {$safeName}\nক্যাটেগরি: {$safeCategory}\nহোলসেল মূল্য: ৳{$wholesale}";
 
         $aiResponse = $this->groq->prompt($systemPrompt, $userPrompt, 1024);
 
@@ -307,6 +309,7 @@ class Agents {
 
         // ডিফল্ট: AI দিয়ে ইমেইল ড্রাফট তৈরি
         $step = (int)($input['step'] ?? 0);
+        if ($step < 0 || $step > 2) $step = 0;
         $email = $input['email'] ?? 'customer@example.com';
         $name  = $input['name'] ?? 'গ্রাহক';
         $storeName = $this->db->getSetting('store_name', 'আমার স্টোর');
@@ -400,9 +403,11 @@ class Agents {
         $price       = $input['price'] ?? '';
         $storeName   = $this->db->getSetting('store_name', 'আমার স্টোর');
 
+        $safeProductName = $this->sanitizeForPrompt($productName, 200);
+        $safePlatforms = $this->sanitizeForPrompt($platforms, 100);
         $output = $this->groq->prompt(
             'তুমি একজন সোশ্যাল মিডিয়া মার্কেটার। বাংলায় পোস্ট ও ক্যাপশন লিখো। প্রতিটি প্ল্যাটফর্মের জন্য আলাদা দাও।',
-            "পণ্য: {$productName}\nদাম: ৳{$price}\nপ্ল্যাটফর্ম: {$platforms}\nস্টোর: {$storeName}\n\nপ্রতিটি প্ল্যাটফর্মের জন্য পোস্ট + হ্যাশট্যাগ দাও।",
+            "পণ্য: {$safeProductName}\nদাম: ৳{$price}\nপ্ল্যাটফর্ম: {$safePlatforms}\nস্টোর: {$storeName}\n\nপ্রতিটি প্ল্যাটফর্মের জন্য পোস্ট + হ্যাশট্যাগ দাও।",
             1024
         );
 
@@ -668,7 +673,9 @@ class Agents {
                 ? 'তুমি একজন ব্লগ লেখক। বাংলায় SEO-ফ্রেন্ডলি ব্লগ পোস্ট লিখো। H2, H3 সাবহেডিং ব্যবহার করো।'
                 : 'তুমি একজন কনটেন্ট ক্রিয়েটর। বাংলায় লিখো।');
 
-        $userPrompt = "বিষয়: {$topic}\nপণ্য: {$product}";
+        $safeTopic = $this->sanitizeForPrompt($topic, 200);
+        $safeProduct = $this->sanitizeForPrompt($product, 200);
+        $userPrompt = "বিষয়: {$safeTopic}\nপণ্য: {$safeProduct}";
         $output = $this->groq->prompt($systemPrompt, $userPrompt, 1024);
 
         $typeLabel = $type === 'video' ? 'ভিডিও স্ক্রিপ্ট' : 'ব্লগ পোস্ট';
@@ -688,9 +695,13 @@ class Agents {
             return '❌ কাস্টমারের মেসেজ দিন।';
         }
 
+        $safeMessage = $this->sanitizeForPrompt($message, 1000);
+        $safeCustomerName = $this->sanitizeForPrompt($customerName, 100);
+        $safeOrderId = preg_replace('/[^a-zA-Z0-9_-]/', '', $orderId);
+
         $draft = $this->groq->prompt(
             "তুমি {$storeName}-এর কাস্টমার সাপোর্ট। বাংলায় ভদ্র, সাহায্যকারী রিপ্লাই লিখো।",
-            "কাস্টমার: {$customerName}\nঅর্ডার: #{$orderId}\nমেসেজ: {$message}",
+            "কাস্টমার: {$safeCustomerName}\nঅর্ডার: #{$safeOrderId}\nমেসেজ: {$safeMessage}",
             512
         );
 
@@ -791,6 +802,17 @@ class Agents {
     // ────────────────────────────────────────────────────────────
     // হেল্পার মেথড
     // ────────────────────────────────────────────────────────────
+
+    /**
+     * ইউজার ইনপুট স্যানিটাইজ (AI প্রম্পট ইনজেকশন রোধ)
+     * সিস্টেম প্রম্পট নির্দেশনা ওভাররাইড রোধ, দীর্ঘ ইনপুট ছোট করুন
+     */
+    private function sanitizeForPrompt(string $text, int $maxLen = 500): string {
+        $text = mb_substr($text, 0, $maxLen);
+        // সন্দেহজনক প্রম্পট ইনজেকশন প্যাটার্ন নিউট্রালাইজ
+        $text = str_ireplace(['ignore previous', 'ignore above', 'system:', 'assistant:', 'new instruction', 'disregard'], '…', $text);
+        return trim($text);
+    }
 
     /**
      * JSON রেসপন্স পার্স — AI থেকে আসা JSON বের করুন

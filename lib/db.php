@@ -276,26 +276,40 @@ class DB {
     /**
      * চ্যাট মেসেজ সেভ করুন
      */
-    public function saveChatMessage(string $role, string $content): int {
+    public function saveChatMessage(string $role, string $content, int $userId = 0): int {
         if (!$this->pdo) return 0;
         try {
-            $stmt = $this->pdo->prepare('INSERT INTO chat_messages (role, content) VALUES (?, ?)');
-            $stmt->execute([$role, mb_substr($content, 0, 5000)]);
+            $stmt = $this->pdo->prepare('INSERT INTO chat_messages (role, content, user_id) VALUES (?, ?, ?)');
+            $stmt->execute([$role, mb_substr($content, 0, 5000), $userId]);
             return (int)$this->pdo->lastInsertId();
         } catch (Exception $e) {
-            return 0;
+            // user_id কলাম না থাকলে ফলব্যাক (পুরানো স্কিমা)
+            try {
+                $stmt = $this->pdo->prepare('INSERT INTO chat_messages (role, content) VALUES (?, ?)');
+                $stmt->execute([$role, mb_substr($content, 0, 5000)]);
+                return (int)$this->pdo->lastInsertId();
+            } catch (Exception $e2) {
+                return 0;
+            }
         }
     }
 
     /**
-     * চ্যাট হিস্ট্রি পড়ুন
+     * চ্যাট হিস্ট্রি পড়ুন (ইউজার অনুযায়ী ফিল্টার)
      */
-    public function getChatHistory(int $limit = 50): array {
+    public function getChatHistory(int $limit = 50, int $userId = 0): array {
         if (!$this->pdo) return [];
         try {
-            $stmt = $this->pdo->prepare('SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?');
-            $stmt->bindValue(1, $limit, PDO::PARAM_INT);
-            $stmt->execute();
+            if ($userId > 0) {
+                $stmt = $this->pdo->prepare('SELECT * FROM chat_messages WHERE user_id = ? ORDER BY created_at DESC LIMIT ?');
+                $stmt->bindValue(1, $userId, PDO::PARAM_INT);
+                $stmt->bindValue(2, $limit, PDO::PARAM_INT);
+                $stmt->execute();
+            } else {
+                $stmt = $this->pdo->prepare('SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT ?');
+                $stmt->bindValue(1, $limit, PDO::PARAM_INT);
+                $stmt->execute();
+            }
             return array_reverse($stmt->fetchAll());
         } catch (Exception $e) {
             return [];

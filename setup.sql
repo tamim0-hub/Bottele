@@ -56,7 +56,9 @@ CREATE TABLE IF NOT EXISTS `chat_messages` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `role` ENUM('user','assistant') NOT NULL,
   `content` TEXT NOT NULL,
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP
+  `user_id` INT DEFAULT 0,
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS `cart_recovery` (
