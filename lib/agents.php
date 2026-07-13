@@ -141,9 +141,7 @@ class Agents {
 
         // Groq-কে description + SEO লিখতে বলুন
         $systemPrompt = 'তুমি একজন ই-কমার্স কপিরাইটার। বাংলায় পণ্যের বিবরণ, SEO title, meta description লিখো। JSON ফরম্যাটে দাও: {"description":"...","seo_title":"...","meta_description":"...","tags":["..."]}';
-        $safeName = $this->sanitizeForPrompt($name, 200);
-        $safeCategory = $this->sanitizeForPrompt($category, 100);
-        $userPrompt = "পণ্যের নাম: {$safeName}\nক্যাটেগরি: {$safeCategory}\nহোলসেল মূল্য: ৳{$wholesale}";
+        $userPrompt = "পণ্যের নাম: {$name}\nক্যাটেগরি: {$category}\nহোলসেল মূল্য: ৳{$wholesale}";
 
         $aiResponse = $this->groq->prompt($systemPrompt, $userPrompt, 1024);
 
@@ -157,21 +155,27 @@ class Agents {
         // মার্জিন সহ দাম হিসাব
         $retailPrice = $wholesale > 0 ? round($wholesale * (1 + $margin / 100), 0) : 0;
 
+        // AI আউটপুট স্যানিটাইজ — প্রম্পট ইনজেকশন রোধ
+        $description = mb_substr(strip_tags($description), 0, 5000);
+        $seoTitle    = mb_substr(strip_tags($seoTitle), 0, 200);
+        $metaDesc    = mb_substr(strip_tags($metaDesc), 0, 300);
+        $tags        = is_array($tags) ? array_slice(array_map(fn($t) => mb_substr(strip_tags((string)$t), 0, 50), $tags), 0, 10) : [];
+
         // WooCommerce-তে পণ্য তৈরি
         $productData = [
-            'name'              => $name,
+            'name'              => mb_substr($name, 0, 200),
             'type'              => 'simple',
             'regular_price'     => (string)$retailPrice,
             'description'       => $description,
             'short_description' => mb_substr($description, 0, 200),
-            'categories'        => [['name' => $category]],
+            'categories'        => [['name' => mb_substr($category, 0, 100)]],
             'meta_data'         => [
                 ['key' => '_seo_title', 'value' => $seoTitle],
                 ['key' => '_meta_description', 'value' => $metaDesc],
             ],
         ];
 
-        if ($imageUrl) {
+        if ($imageUrl && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
             $productData['images'] = [['src' => $imageUrl]];
         }
 
@@ -289,8 +293,8 @@ class Agents {
         if ($action === 'add') {
             // নতুন কার্ট যোগ
             if (!$this->db->isConnected()) return '❌ ডাটাবেস কানেকশন নেই।';
-            $email = $input['email'] ?? '';
-            $name  = $input['name'] ?? '';
+            $email = mb_substr($input['email'] ?? '', 0, 255);
+            $name  = mb_substr($input['name'] ?? '', 0, 200);
             $cart  = $input['cart_data'] ?? '{}';
 
             if (empty($email)) return '❌ ইমেইল দিন।';
@@ -309,7 +313,6 @@ class Agents {
 
         // ডিফল্ট: AI দিয়ে ইমেইল ড্রাফট তৈরি
         $step = (int)($input['step'] ?? 0);
-        if ($step < 0 || $step > 2) $step = 0;
         $email = $input['email'] ?? 'customer@example.com';
         $name  = $input['name'] ?? 'গ্রাহক';
         $storeName = $this->db->getSetting('store_name', 'আমার স্টোর');
@@ -398,16 +401,14 @@ class Agents {
     // ৬. SOCIAL — পোস্ট/ক্যাপশন জেনারেটর
     // ────────────────────────────────────────────────────────────
     private function social(array $input): string {
-        $productName = $input['product_name'] ?? 'আমার পণ্য';
-        $platforms   = $input['platforms'] ?? $this->db->getSetting('social_platforms', 'facebook,instagram');
-        $price       = $input['price'] ?? '';
+        $productName = mb_substr($input['product_name'] ?? 'আমার পণ্য', 0, 200);
+        $platforms   = mb_substr($input['platforms'] ?? $this->db->getSetting('social_platforms', 'facebook,instagram'), 0, 200);
+        $price       = preg_replace('/[^0-9.]/', '', $input['price'] ?? '');
         $storeName   = $this->db->getSetting('store_name', 'আমার স্টোর');
 
-        $safeProductName = $this->sanitizeForPrompt($productName, 200);
-        $safePlatforms = $this->sanitizeForPrompt($platforms, 100);
         $output = $this->groq->prompt(
             'তুমি একজন সোশ্যাল মিডিয়া মার্কেটার। বাংলায় পোস্ট ও ক্যাপশন লিখো। প্রতিটি প্ল্যাটফর্মের জন্য আলাদা দাও।',
-            "পণ্য: {$safeProductName}\nদাম: ৳{$price}\nপ্ল্যাটফর্ম: {$safePlatforms}\nস্টোর: {$storeName}\n\nপ্রতিটি প্ল্যাটফর্মের জন্য পোস্ট + হ্যাশট্যাগ দাও।",
+            "পণ্য: {$productName}\nদাম: ৳{$price}\nপ্ল্যাটফর্ম: {$platforms}\nস্টোর: {$storeName}\n\nপ্রতিটি প্ল্যাটফর্মের জন্য পোস্ট + হ্যাশট্যাগ দাও।",
             1024
         );
 
@@ -663,9 +664,9 @@ class Agents {
     // ৮. CONTENT — ভিডিও/ব্লগ স্ক্রিপ্ট
     // ────────────────────────────────────────────────────────────
     private function content(array $input): string {
-        $topic  = $input['topic'] ?? 'পণ্য পরিচিতি';
-        $type   = $input['type'] ?? 'video'; // video, blog
-        $product = $input['product_name'] ?? '';
+        $topic  = mb_substr($input['topic'] ?? 'পণ্য পরিচিতি', 0, 200);
+        $type   = in_array($input['type'] ?? '', ['video', 'blog'], true) ? $input['type'] : 'video';
+        $product = mb_substr($input['product_name'] ?? '', 0, 200);
 
         $systemPrompt = $type === 'video'
             ? 'তুমি একজন ভিডিও স্ক্রিপ্ট লেখক। বাংলায় ছোট ভিডিও স্ক্রিপ্ট লিখো (৩০-৬০ সেকেন্ড)। হুক, সমস্যা, সমাধান, CTA ফরম্যাটে।'
@@ -673,9 +674,7 @@ class Agents {
                 ? 'তুমি একজন ব্লগ লেখক। বাংলায় SEO-ফ্রেন্ডলি ব্লগ পোস্ট লিখো। H2, H3 সাবহেডিং ব্যবহার করো।'
                 : 'তুমি একজন কনটেন্ট ক্রিয়েটর। বাংলায় লিখো।');
 
-        $safeTopic = $this->sanitizeForPrompt($topic, 200);
-        $safeProduct = $this->sanitizeForPrompt($product, 200);
-        $userPrompt = "বিষয়: {$safeTopic}\nপণ্য: {$safeProduct}";
+        $userPrompt = "বিষয়: {$topic}\nপণ্য: {$product}";
         $output = $this->groq->prompt($systemPrompt, $userPrompt, 1024);
 
         $typeLabel = $type === 'video' ? 'ভিডিও স্ক্রিপ্ট' : 'ব্লগ পোস্ট';
@@ -686,22 +685,18 @@ class Agents {
     // ৯. CUSTOMER REPLY — রিপ্লাই ড্রাফট
     // ────────────────────────────────────────────────────────────
     private function customerReply(array $input): string {
-        $message = $input['message'] ?? '';
-        $customerName = $input['customer_name'] ?? 'গ্রাহক';
-        $orderId = $input['order_id'] ?? '';
+        $message = mb_substr($input['message'] ?? '', 0, 2000);
+        $customerName = mb_substr($input['customer_name'] ?? 'গ্রাহক', 0, 100);
+        $orderId = preg_replace('/[^a-zA-Z0-9_-]/', '', $input['order_id'] ?? '');
         $storeName = $this->db->getSetting('store_name', 'আমার স্টোর');
 
         if (empty($message)) {
             return '❌ কাস্টমারের মেসেজ দিন।';
         }
 
-        $safeMessage = $this->sanitizeForPrompt($message, 1000);
-        $safeCustomerName = $this->sanitizeForPrompt($customerName, 100);
-        $safeOrderId = preg_replace('/[^a-zA-Z0-9_-]/', '', $orderId);
-
         $draft = $this->groq->prompt(
             "তুমি {$storeName}-এর কাস্টমার সাপোর্ট। বাংলায় ভদ্র, সাহায্যকারী রিপ্লাই লিখো।",
-            "কাস্টমার: {$safeCustomerName}\nঅর্ডার: #{$safeOrderId}\nমেসেজ: {$safeMessage}",
+            "কাস্টমার: {$customerName}\nঅর্ডার: #{$orderId}\nমেসেজ: {$message}",
             512
         );
 
@@ -802,17 +797,6 @@ class Agents {
     // ────────────────────────────────────────────────────────────
     // হেল্পার মেথড
     // ────────────────────────────────────────────────────────────
-
-    /**
-     * ইউজার ইনপুট স্যানিটাইজ (AI প্রম্পট ইনজেকশন রোধ)
-     * সিস্টেম প্রম্পট নির্দেশনা ওভাররাইড রোধ, দীর্ঘ ইনপুট ছোট করুন
-     */
-    private function sanitizeForPrompt(string $text, int $maxLen = 500): string {
-        $text = mb_substr($text, 0, $maxLen);
-        // সন্দেহজনক প্রম্পট ইনজেকশন প্যাটার্ন নিউট্রালাইজ
-        $text = str_ireplace(['ignore previous', 'ignore above', 'system:', 'assistant:', 'new instruction', 'disregard'], '…', $text);
-        return trim($text);
-    }
 
     /**
      * JSON রেসপন্স পার্স — AI থেকে আসা JSON বের করুন

@@ -45,7 +45,6 @@ class Auth {
             $user = $stmt->fetch();
 
             if (!$user) {
-                $this->recordFailedLogin();
                 return ['success' => false, 'error' => 'ইউজারনেম বা পাসওয়ার্ড ভুল।'];
             }
 

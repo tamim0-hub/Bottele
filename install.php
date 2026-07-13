@@ -59,8 +59,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $step = 3;
                 $message = '✅ ডাটাবেস কানেকশন সফল!';
             } catch (PDOException $e) {
-                error_log('install.php DB connection failed: ' . $e->getMessage());
-                $error = 'ডাটাবেস কানেকশন ব্যর্থ। হোস্ট, ইউজারনেম ও পাসওয়ার্ড চেক করুন।';
+                $error = 'ডাটাবেস কানেকশন ব্যর্থ: ' . $e->getMessage();
                 $step = 1;
             }
         }
@@ -143,8 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $message .= ' (ডেমো ডাটা সিড করা হয়েছে)';
                 }
             } catch (Exception $e) {
-                error_log('install.php DB setup error: ' . $e->getMessage());
-                $error = 'ডাটাবেস সেটআপ ত্রুটি। সার্ভার লগ দেখুন।';
+                $error = 'ডাটাবেস সেটআপ ত্রুটি: ' . $e->getMessage();
                 $step = 3;
             }
         }

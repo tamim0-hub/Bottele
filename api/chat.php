@@ -16,10 +16,9 @@ if (!isset($auth)) {
 $auth->requireLogin(true);
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    // চ্যাট হিস্ট্রি লোড (শুধু নিজের মেসেজ)
+    // চ্যাট হিস্ট্রি লোড (পেজ রিফ্রেশে পুরানো মেসেজ দেখাতে)
     try {
-        $userId = (int)($_SESSION['user_id'] ?? 0);
-        $history = $db->getChatHistory(50, $userId);
+        $history = $db->getChatHistory(50);
         echo json_encode(['success' => true, 'messages' => $history], JSON_UNESCAPED_UNICODE);
     } catch (Exception $e) {
         echo json_encode(['success' => false, 'messages' => []]);
@@ -57,11 +56,10 @@ if (mb_strlen($message) > 1000) {
 }
 
 // ইউজার মেসেজ সেভ
-$userId = (int)($_SESSION['user_id'] ?? 0);
-$db->saveChatMessage('user', $message, $userId);
+$db->saveChatMessage('user', $message);
 
-// চ্যাট হিস্ট্রি তৈরি (শুধু নিজের)
-$history = $db->getChatHistory(20, $userId);
+// চ্যাট হিস্ট্রি তৈরি
+$history = $db->getChatHistory(20);
 $messages = [];
 foreach ($history as $h) {
     $messages[] = ['role' => $h['role'], 'content' => $h['content']];
@@ -77,7 +75,7 @@ array_unshift($messages, [
 $reply = $groq->chat($messages, 1024);
 
 // AI রিপ্লাই সেভ
-$db->saveChatMessage('assistant', $reply, $userId);
+$db->saveChatMessage('assistant', $reply);
 
 echo json_encode([
     'success' => true,
