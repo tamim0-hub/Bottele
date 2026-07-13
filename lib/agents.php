@@ -155,21 +155,27 @@ class Agents {
         // মার্জিন সহ দাম হিসাব
         $retailPrice = $wholesale > 0 ? round($wholesale * (1 + $margin / 100), 0) : 0;
 
+        // AI আউটপুট স্যানিটাইজ — প্রম্পট ইনজেকশন রোধ
+        $description = mb_substr(strip_tags($description), 0, 5000);
+        $seoTitle    = mb_substr(strip_tags($seoTitle), 0, 200);
+        $metaDesc    = mb_substr(strip_tags($metaDesc), 0, 300);
+        $tags        = is_array($tags) ? array_slice(array_map(fn($t) => mb_substr(strip_tags((string)$t), 0, 50), $tags), 0, 10) : [];
+
         // WooCommerce-তে পণ্য তৈরি
         $productData = [
-            'name'              => $name,
+            'name'              => mb_substr($name, 0, 200),
             'type'              => 'simple',
             'regular_price'     => (string)$retailPrice,
             'description'       => $description,
             'short_description' => mb_substr($description, 0, 200),
-            'categories'        => [['name' => $category]],
+            'categories'        => [['name' => mb_substr($category, 0, 100)]],
             'meta_data'         => [
                 ['key' => '_seo_title', 'value' => $seoTitle],
                 ['key' => '_meta_description', 'value' => $metaDesc],
             ],
         ];
 
-        if ($imageUrl) {
+        if ($imageUrl && filter_var($imageUrl, FILTER_VALIDATE_URL)) {
             $productData['images'] = [['src' => $imageUrl]];
         }
 
@@ -287,8 +293,8 @@ class Agents {
         if ($action === 'add') {
             // নতুন কার্ট যোগ
             if (!$this->db->isConnected()) return '❌ ডাটাবেস কানেকশন নেই।';
-            $email = $input['email'] ?? '';
-            $name  = $input['name'] ?? '';
+            $email = mb_substr($input['email'] ?? '', 0, 255);
+            $name  = mb_substr($input['name'] ?? '', 0, 200);
             $cart  = $input['cart_data'] ?? '{}';
 
             if (empty($email)) return '❌ ইমেইল দিন।';
@@ -395,9 +401,9 @@ class Agents {
     // ৬. SOCIAL — পোস্ট/ক্যাপশন জেনারেটর
     // ────────────────────────────────────────────────────────────
     private function social(array $input): string {
-        $productName = $input['product_name'] ?? 'আমার পণ্য';
-        $platforms   = $input['platforms'] ?? $this->db->getSetting('social_platforms', 'facebook,instagram');
-        $price       = $input['price'] ?? '';
+        $productName = mb_substr($input['product_name'] ?? 'আমার পণ্য', 0, 200);
+        $platforms   = mb_substr($input['platforms'] ?? $this->db->getSetting('social_platforms', 'facebook,instagram'), 0, 200);
+        $price       = preg_replace('/[^0-9.]/', '', $input['price'] ?? '');
         $storeName   = $this->db->getSetting('store_name', 'আমার স্টোর');
 
         $output = $this->groq->prompt(
@@ -658,9 +664,9 @@ class Agents {
     // ৮. CONTENT — ভিডিও/ব্লগ স্ক্রিপ্ট
     // ────────────────────────────────────────────────────────────
     private function content(array $input): string {
-        $topic  = $input['topic'] ?? 'পণ্য পরিচিতি';
-        $type   = $input['type'] ?? 'video'; // video, blog
-        $product = $input['product_name'] ?? '';
+        $topic  = mb_substr($input['topic'] ?? 'পণ্য পরিচিতি', 0, 200);
+        $type   = in_array($input['type'] ?? '', ['video', 'blog'], true) ? $input['type'] : 'video';
+        $product = mb_substr($input['product_name'] ?? '', 0, 200);
 
         $systemPrompt = $type === 'video'
             ? 'তুমি একজন ভিডিও স্ক্রিপ্ট লেখক। বাংলায় ছোট ভিডিও স্ক্রিপ্ট লিখো (৩০-৬০ সেকেন্ড)। হুক, সমস্যা, সমাধান, CTA ফরম্যাটে।'
@@ -679,9 +685,9 @@ class Agents {
     // ৯. CUSTOMER REPLY — রিপ্লাই ড্রাফট
     // ────────────────────────────────────────────────────────────
     private function customerReply(array $input): string {
-        $message = $input['message'] ?? '';
-        $customerName = $input['customer_name'] ?? 'গ্রাহক';
-        $orderId = $input['order_id'] ?? '';
+        $message = mb_substr($input['message'] ?? '', 0, 2000);
+        $customerName = mb_substr($input['customer_name'] ?? 'গ্রাহক', 0, 100);
+        $orderId = preg_replace('/[^a-zA-Z0-9_-]/', '', $input['order_id'] ?? '');
         $storeName = $this->db->getSetting('store_name', 'আমার স্টোর');
 
         if (empty($message)) {
